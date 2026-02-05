@@ -22,6 +22,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Metric/imperial unit toggle with dynamic labels.
 - Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins.
+- Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator.
 
 ## Layout Notes
 - **Traditional card grid**: Portrait page. Duplex flip on **long edge**.
@@ -32,6 +33,12 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Upload **one back** to apply it to all fronts automatically.
 - Upload **multiple backs** to enable per-card assignment in the thumbnails section.
 - Use the **Select all** checkbox and batch selector to assign a back to multiple cards at once.
+
+## Back Nudge (Optional)
+- Enable when using duplex layouts if you observe front/back drift.
+- Set X/Y offsets in **mm (0.5 mm steps)** after measuring a test print.
+- Preview shows the center crosshair and applied nudge.
+- Applied to all backs on export (printer-specific).
 
 ## Usage
 1. Open `index.html` in a browser.
@@ -45,6 +52,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - `app.js` — PDF generation + preview logic
 
 ## Changelog
+- Added optional Back Nudge controls with preview indicator (mm offsets).
 - Added adaptive layout summary panel and format-aware export header.
 - Added metric/imperial toggle with dynamic labels and conversions.
 - Added adjustable gutter/bleed control by layout (0.10–0.75").
