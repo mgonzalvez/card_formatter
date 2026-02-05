@@ -36,9 +36,7 @@ const pageSizes = {
 
 const cardSizes = {
   poker: { w: 2.5, h: 3.5 },
-  tarot: { w: 2.75, h: 4 },
-  jumbo: { w: 3.5, h: 5 },
-  square: { w: 3.5, h: 3.5 },
+  square: { w: 2.5, h: 2.5 },
   bridge: { w: 2.25, h: 3.5 },
   mini: { w: 1.75, h: 2.5 },
 };
