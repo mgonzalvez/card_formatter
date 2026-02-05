@@ -794,6 +794,14 @@ async function renderPreview() {
     setStatus("Layout is unsafe to print. Adjust layout or page size.");
   } else {
     previewMeta.textContent = "Preview updates automatically.";
+    const frontCount = frontFilesInput.files?.length || 0;
+    const backCount = getBackFiles().length;
+    if (frontCount) {
+      const backText = backCount ? `, ${backCount} back image(s)` : "";
+      setStatus(`Ready to print (${frontCount} front image(s)${backText}).`);
+    } else {
+      setStatus("Waiting for files…");
+    }
   }
 
   const ctx = previewCanvas.getContext("2d");
