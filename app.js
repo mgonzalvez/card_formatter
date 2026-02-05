@@ -86,7 +86,7 @@ function getGutterValueInInches() {
   const raw = Number(gutterInput.value || 0);
   if (Number.isNaN(raw)) return 0.25;
   const inches = unitToggle.checked ? raw / 25.4 : raw;
-  return Math.min(0.75, Math.max(0.25, inches));
+  return Math.min(0.75, Math.max(0.10, inches));
 }
 
 function getBleedValueInInches() {
@@ -1238,8 +1238,8 @@ function updateLayoutUi() {
     gutterInput.disabled = false;
     gutterInput.parentElement.classList.remove("is-disabled");
     gutterLabel.textContent = unitToggle.checked ? "Gutterfold center gutter (mm)" : "Gutterfold center gutter (in)";
-    if (Number(gutterInput.value) < (unitToggle.checked ? inchesToMm(0.25) : 0.25)) {
-      gutterInput.value = unitToggle.checked ? formatNumber(inchesToMm(0.25), 2) : "0.25";
+    if (Number(gutterInput.value) < (unitToggle.checked ? inchesToMm(0.10) : 0.10)) {
+      gutterInput.value = unitToggle.checked ? formatNumber(inchesToMm(0.10), 2) : "0.10";
     }
   } else if (layoutSelect.value === "grid2x3bleed") {
     gutterInput.disabled = false;
