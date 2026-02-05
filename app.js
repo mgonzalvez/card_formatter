@@ -41,6 +41,7 @@ let lastUnitMetric = false;
 
 const BLEED_GAP_IN = 0.25;
 const BLEED_EXTEND_IN = 0.25;
+const SAFE_MARGIN_IN = 0.25;
 const POINTS_PER_IN = 72;
 
 const pageSizes = {
@@ -83,14 +84,22 @@ function formatSizeLabel(size, useMetric) {
 
 function getGutterValueInInches() {
   const raw = Number(gutterInput.value || 0);
-  if (Number.isNaN(raw)) return 0;
-  return unitToggle.checked ? raw / 25.4 : raw;
+  if (Number.isNaN(raw)) return 0.25;
+  const inches = unitToggle.checked ? raw / 25.4 : raw;
+  return Math.min(0.75, Math.max(0.25, inches));
+}
+
+function getBleedValueInInches() {
+  const raw = Number(gutterInput.value || 0);
+  if (Number.isNaN(raw)) return 0.25;
+  const inches = unitToggle.checked ? raw / 25.4 : raw;
+  return Math.min(0.75, Math.max(0.25, inches));
 }
 
 function updateUnitDisplay() {
   const useMetric = unitToggle.checked;
   unitLabel.textContent = useMetric ? "Units: Metric (mm)" : "Units: Imperial (inches)";
-  gutterLabel.textContent = useMetric ? "Gutterfold center gutter (mm)" : "Gutterfold center gutter (in)";
+  gutterLabel.textContent = useMetric ? "Center gutter / bleed (mm)" : "Center gutter / bleed (in)";
 
   if (useMetric !== lastUnitMetric) {
     const current = Number(gutterInput.value || 0);
@@ -99,6 +108,16 @@ function updateUnitDisplay() {
       gutterInput.value = formatNumber(next, useMetric ? 2 : 2);
     }
     lastUnitMetric = useMetric;
+  }
+
+  if (useMetric) {
+    gutterInput.min = formatNumber(inchesToMm(0.25), 2);
+    gutterInput.max = formatNumber(inchesToMm(0.75), 2);
+    gutterInput.step = "0.5";
+  } else {
+    gutterInput.min = "0.25";
+    gutterInput.max = "0.75";
+    gutterInput.step = "0.05";
   }
 
   const sizeEntries = [
@@ -120,11 +139,11 @@ function updateUnitDisplay() {
 
   if (useMetric) {
     layoutHelper.textContent =
-      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 6.35 mm per side. " +
+      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 6.35 mm per side (adjustable). " +
       "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
   } else {
     layoutHelper.textContent =
-      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side. " +
+      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side (adjustable). " +
       "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
   }
   updateSummary();
@@ -145,7 +164,8 @@ function updateSummary() {
   summaryLabel3.textContent = "Details";
   let detailParts = [];
   if (layoutKey === "grid2x3bleed") {
-    const bleed = useMetric ? `${formatNumber(inchesToMm(0.25), 2)} mm` : `0.25"`;
+    const bleedIn = getBleedValueInInches();
+    const bleed = useMetric ? `${formatNumber(inchesToMm(bleedIn), 2)} mm` : `${formatNumber(bleedIn, 2)}"`;
     detailParts.push(`Bleed: ${bleed} per side`);
   } else if (layoutKey === "gutterfold") {
     const gutterIn = getGutterValueInInches();
@@ -210,8 +230,8 @@ function getCardSizeForLayout(layoutKey) {
   }
   if (layoutKey === "grid2x3bleed") {
     return {
-      w: cardSize.w + inchesToPoints(BLEED_EXTEND_IN * 2),
-      h: cardSize.h + inchesToPoints(BLEED_EXTEND_IN * 2),
+      w: cardSize.w + inchesToPoints(getBleedValueInInches() * 2),
+      h: cardSize.h + inchesToPoints(getBleedValueInInches() * 2),
     };
   }
   return cardSize;
@@ -334,27 +354,40 @@ async function getNormalizedDataUrl(file) {
 }
 
 async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches) {
-  const img = await loadImageFromDataUrl(dataUrl);
-  const bleedPxX = Math.max(1, Math.round((bleedIn / cardSizeInches.w) * img.width));
-  const bleedPxY = Math.max(1, Math.round((bleedIn / cardSizeInches.h) * img.height));
+  if (!bleedIn || !cardSizeInches || !cardSizeInches.w || !cardSizeInches.h) {
+    return dataUrl;
+  }
+  try {
+    const img = await loadImageFromDataUrl(dataUrl);
+    const bleedPxX = Math.max(1, Math.round((bleedIn / cardSizeInches.w) * img.width));
+    const bleedPxY = Math.max(1, Math.round((bleedIn / cardSizeInches.h) * img.height));
+    if (!Number.isFinite(bleedPxX) || !Number.isFinite(bleedPxY)) {
+      return dataUrl;
+    }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = img.width + bleedPxX * 2;
-  canvas.height = img.height + bleedPxY * 2;
-  const ctx = canvas.getContext("2d");
-  ctx.imageSmoothingEnabled = false;
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width + bleedPxX * 2;
+    canvas.height = img.height + bleedPxY * 2;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
 
-  ctx.drawImage(img, 0, 0, 1, img.height, 0, bleedPxY, bleedPxX, img.height);
-  ctx.drawImage(img, img.width - 1, 0, 1, img.height, bleedPxX + img.width, bleedPxY, bleedPxX, img.height);
-  ctx.drawImage(img, 0, 0, img.width, 1, bleedPxX, 0, img.width, bleedPxY);
-  ctx.drawImage(img, 0, img.height - 1, img.width, 1, bleedPxX, bleedPxY + img.height, img.width, bleedPxY);
+    ctx.drawImage(img, 0, 0, 1, img.height, 0, bleedPxY, bleedPxX, img.height);
+    ctx.drawImage(img, img.width - 1, 0, 1, img.height, bleedPxX + img.width, bleedPxY, bleedPxX, img.height);
+    ctx.drawImage(img, 0, 0, img.width, 1, bleedPxX, 0, img.width, bleedPxY);
+    ctx.drawImage(img, 0, img.height - 1, img.width, 1, bleedPxX, bleedPxY + img.height, img.width, bleedPxY);
 
-  ctx.drawImage(img, 0, 0, 1, 1, 0, 0, bleedPxX, bleedPxY);
-  ctx.drawImage(img, img.width - 1, 0, 1, 1, bleedPxX + img.width, 0, bleedPxX, bleedPxY);
-  ctx.drawImage(img, 0, img.height - 1, 1, 1, 0, bleedPxY + img.height, bleedPxX, bleedPxY);
-  ctx.drawImage(img, img.width - 1, img.height - 1, 1, 1, bleedPxX + img.width, bleedPxY + img.height, bleedPxX, bleedPxY);
+    ctx.drawImage(img, 0, 0, 1, 1, 0, 0, bleedPxX, bleedPxY);
+    ctx.drawImage(img, img.width - 1, 0, 1, 1, bleedPxX + img.width, 0, bleedPxX, bleedPxY);
+    ctx.drawImage(img, 0, img.height - 1, 1, 1, 0, bleedPxY + img.height, bleedPxX, bleedPxY);
+    ctx.drawImage(img, img.width - 1, img.height - 1, 1, 1, bleedPxX + img.width, bleedPxY + img.height, bleedPxX, bleedPxY);
 
-  return canvas.toDataURL("image/png");
+    ctx.drawImage(img, bleedPxX, bleedPxY);
+
+    return canvas.toDataURL("image/png");
+  } catch (error) {
+    console.error("Bleed extension failed, using original image.", error);
+    return dataUrl;
+  }
 }
 
 async function embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches) {
@@ -522,6 +555,16 @@ function layoutFits(pageSize, layoutConfig, cardSize) {
   return { fits: totalW <= pageSize.w && totalH <= pageSize.h, totalW, totalH };
 }
 
+function layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize) {
+  const gap = inchesToPoints(layoutConfig.gap || 0);
+  const centerGutter = inchesToPoints(layoutConfig.centerGutter || 0);
+  const totalW = layoutConfig.cols * cardSize.w + (layoutConfig.cols - 1) * gap + centerGutter;
+  const totalH = layoutConfig.rows * cardSize.h + (layoutConfig.rows - 1) * gap;
+  const safeW = pageSize.w - inchesToPoints(SAFE_MARGIN_IN) * 2;
+  const safeH = pageSize.h - inchesToPoints(SAFE_MARGIN_IN) * 2;
+  return { fits: totalW <= safeW && totalH <= safeH, totalW, totalH, safeW, safeH };
+}
+
 function suggestAlternatives(pageKey, layoutKey, cardKey) {
   const suggestions = [];
   const pageOptions = Object.keys(pageSizes);
@@ -592,12 +635,16 @@ async function loadPreviewImages(files, options = {}) {
   const { bleedIn = 0, cardSizeInches = null } = options;
   const images = [];
   for (const file of files) {
-    let dataUrl = await getNormalizedDataUrl(file);
-    if (bleedIn > 0 && cardSizeInches) {
-      dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches);
+    try {
+      let dataUrl = await getNormalizedDataUrl(file);
+      if (bleedIn > 0 && cardSizeInches) {
+        dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches);
+      }
+      const img = await loadImageFromDataUrl(dataUrl);
+      images.push(img);
+    } catch (error) {
+      console.error("Preview image load failed", error);
     }
-    const img = await loadImageFromDataUrl(dataUrl);
-    images.push(img);
   }
   return images;
 }
@@ -605,7 +652,7 @@ async function loadPreviewImages(files, options = {}) {
 async function renderThumbnails() {
   const frontFiles = Array.from(frontFilesInput.files || []);
   const backFiles = getBackFiles();
-  const bleedIn = layoutSelect.value === "grid2x3bleed" ? BLEED_EXTEND_IN : 0;
+  const bleedIn = layoutSelect.value === "grid2x3bleed" ? getBleedValueInInches() : 0;
   const cardSizeInches = getCardSizeInches();
   const backCount = backFiles.length;
 
@@ -720,9 +767,10 @@ async function renderPreview() {
   const pageSize = getPageSizeForLayout(layoutKey, pageSizeSelect.value);
   const cardSize = getCardSizeForLayout(layoutKey);
   const cardSizeInches = getCardSizeInches();
-  const bleedIn = layoutKey === "grid2x3bleed" ? BLEED_EXTEND_IN : 0;
+  const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
   const crosshairInsetPt = inchesToPoints(bleedIn);
   const fits = layoutFits(pageSize, layoutConfig, cardSize);
+  const safeFits = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutSelect.value);
   const flipAxis = getDuplexFlipAxis(layoutSelect.value);
   const backPositions = getMirroredPositions(positions, pageSize.w, pageSize.h, flipAxis);
@@ -736,13 +784,14 @@ async function renderPreview() {
   const duplexEnabled = hasBacks && !isGutterfold(layoutSelect.value);
   const previewBack = previewBackToggle.checked && duplexEnabled;
 
-  if (!fits.fits) {
+  if (!fits.fits || !safeFits.fits) {
     const suggestions = suggestAlternatives(pageSizeSelect.value, layoutSelect.value, cardSizeSelect.value);
     const suggestionText = suggestions.length
       ? suggestions.map((s) => `${formatLayoutName(s.layout)} on ${formatPageName(s.page)}`).join(" · ")
       : "Try a smaller card size or different layout.";
-    previewMeta.textContent = `Layout does not fit. Suggestions: ${suggestionText}`;
-    setStatus("Layout does not fit. Adjust layout or page size.");
+    const reason = !fits.fits ? "Layout exceeds page size." : "Layout exceeds safe print margins.";
+    previewMeta.textContent = `${reason} Suggestions: ${suggestionText}`;
+    setStatus("Layout is unsafe to print. Adjust layout or page size.");
   } else {
     previewMeta.textContent = "Preview updates automatically.";
   }
@@ -764,6 +813,29 @@ async function renderPreview() {
   ctx.strokeStyle = "#c9b8a3";
   ctx.lineWidth = 1;
   ctx.strokeRect(pageX, pageY, pageSize.w * scale, pageSize.h * scale);
+
+  const safeMarginPx = inchesToPoints(SAFE_MARGIN_IN) * scale;
+  ctx.save();
+  ctx.setLineDash([6, 6]);
+  ctx.strokeStyle = "#d48b8b";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(
+    pageX + safeMarginPx,
+    pageY + safeMarginPx,
+    pageSize.w * scale - safeMarginPx * 2,
+    pageSize.h * scale - safeMarginPx * 2
+  );
+  ctx.fillStyle = "#b04822";
+  ctx.font = "12px \"Space Grotesk\", sans-serif";
+  ctx.fillText("Safe margin", pageX + safeMarginPx + 8, pageY + safeMarginPx + 14);
+  ctx.restore();
+
+  if (!fits.fits || !safeFits.fits) {
+    ctx.save();
+    ctx.fillStyle = "rgba(200, 60, 60, 0.08)";
+    ctx.fillRect(pageX, pageY, pageSize.w * scale, pageSize.h * scale);
+    ctx.restore();
+  }
 
   if (isGutterfold(layoutSelect.value)) {
     const centerX = pageX + (pageSize.w * scale) / 2;
@@ -866,6 +938,15 @@ async function renderPreview() {
       drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, 0);
     });
 
+    if (!fits.fits || !safeFits.fits) {
+      ctx.save();
+      ctx.fillStyle = "rgba(200, 60, 60, 0.15)";
+      ctx.fillRect(pageX, pageY, pageSize.w * scale, pageSize.h * scale);
+      ctx.restore();
+      ctx.fillStyle = "#b04822";
+      ctx.font = "bold 14px \"Space Grotesk\", sans-serif";
+      ctx.fillText("Layout exceeds safe print margins", pageX + 12, pageY + 22);
+    }
     return;
   }
 
@@ -897,7 +978,7 @@ async function renderPreview() {
     }
 
     if (layoutSelect.value === "grid2x3bleed") {
-      const inset = inchesToPoints(BLEED_EXTEND_IN) * scale;
+      const inset = inchesToPoints(getBleedValueInInches()) * scale;
       ctx.save();
       ctx.setLineDash([6, 6]);
       ctx.strokeStyle = "#d1592a";
@@ -908,6 +989,16 @@ async function renderPreview() {
 
     drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, crosshairInsetPt * scale);
   });
+
+  if (!fits.fits || !safeFits.fits) {
+    ctx.save();
+    ctx.fillStyle = "rgba(200, 60, 60, 0.15)";
+    ctx.fillRect(pageX, pageY, pageSize.w * scale, pageSize.h * scale);
+    ctx.restore();
+    ctx.fillStyle = "#b04822";
+    ctx.font = "bold 14px \"Space Grotesk\", sans-serif";
+    ctx.fillText("Layout exceeds safe print margins", pageX + 12, pageY + 22);
+  }
 }
 
 function drawPreviewCrosshairs(ctx, x, y, w, h, lengthPx, strokePt, insetPx = 0) {
@@ -969,11 +1060,12 @@ async function generatePdf() {
   const pageSize = getPageSizeForLayout(layoutKey, pageSizeSelect.value);
   const cardSize = getCardSizeForLayout(layoutKey);
   const cardSizeInches = getCardSizeInches();
-  const bleedIn = layoutKey === "grid2x3bleed" ? BLEED_EXTEND_IN : 0;
+  const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
   const crosshairInsetPt = inchesToPoints(bleedIn);
   const layoutCheck = layoutFits(pageSize, layoutConfig, cardSize);
-  if (!layoutCheck.fits) {
-    setStatus("Layout does not fit the page. Please adjust layout or page size.");
+  const safeCheck = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
+  if (!layoutCheck.fits || !safeCheck.fits) {
+    setStatus("Layout exceeds safe print margins. Please adjust layout or page size.");
     return;
   }
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutKey);
@@ -1141,6 +1233,20 @@ function updateLayoutUi() {
 
   exportHeading.textContent = `5. Export ${formatLayoutName(layoutSelect.value)}`;
   updateSummary();
+
+  if (layoutSelect.value === "gutterfold") {
+    gutterInput.disabled = false;
+    gutterInput.parentElement.classList.remove("is-disabled");
+    gutterLabel.textContent = unitToggle.checked ? "Gutterfold center gutter (mm)" : "Gutterfold center gutter (in)";
+  } else if (layoutSelect.value === "grid2x3bleed") {
+    gutterInput.disabled = false;
+    gutterInput.parentElement.classList.remove("is-disabled");
+    gutterLabel.textContent = unitToggle.checked ? "Buttonshy bleed per side (mm)" : "Buttonshy bleed per side (in)";
+  } else {
+    gutterInput.disabled = true;
+    gutterInput.parentElement.classList.add("is-disabled");
+    gutterLabel.textContent = "No gutter/bleed for Traditional card grid";
+  }
 
   previewBackToggle.disabled = gutterfold || !hasBacks;
   if (gutterfold) {
