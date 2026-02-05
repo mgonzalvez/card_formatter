@@ -23,6 +23,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins.
 - Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator.
+- Light/Dark theme toggle with saved preference.
 
 ## Layout Notes
 - **Traditional card grid**: Portrait page. Duplex flip on **long edge**.
@@ -52,6 +53,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - `app.js` — PDF generation + preview logic
 
 ## Changelog
+- Added theme toggle with saved preference.
 - Added optional Back Nudge controls with preview indicator (mm offsets).
 - Added adaptive layout summary panel and format-aware export header.
 - Added metric/imperial toggle with dynamic labels and conversions.

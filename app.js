@@ -27,6 +27,7 @@ const nudgeToggle = document.getElementById("nudgeToggle");
 const nudgeControls = document.getElementById("nudgeControls");
 const nudgeXInput = document.getElementById("nudgeX");
 const nudgeYInput = document.getElementById("nudgeY");
+const themeToggle = document.getElementById("themeToggle");
 const unitToggle = document.getElementById("unitToggle");
 const unitLabel = document.getElementById("unitLabel");
 const layoutHelper = document.getElementById("layoutHelper");
@@ -1355,6 +1356,13 @@ layoutSelect.addEventListener("change", () => {
 
 updateLayoutUi();
 updateUnitDisplay();
+const savedTheme = localStorage.getItem("pnpfinder-theme");
+if (savedTheme === "dark" || savedTheme === "light") {
+  document.body.dataset.theme = savedTheme;
+  themeToggle.checked = savedTheme === "dark";
+} else {
+  document.body.dataset.theme = "light";
+}
 
 previewBackToggle.addEventListener("change", () => {
   storedPreviewBackState = previewBackToggle.checked;
@@ -1375,6 +1383,13 @@ unitToggle.addEventListener("change", () => {
 
 nudgeToggle.addEventListener("change", () => {
   updateNudgeUi();
+  renderPreview().catch((error) => console.error(error));
+});
+
+themeToggle.addEventListener("change", () => {
+  const theme = themeToggle.checked ? "dark" : "light";
+  document.body.dataset.theme = theme;
+  localStorage.setItem("pnpfinder-theme", theme);
   renderPreview().catch((error) => console.error(error));
 });
 

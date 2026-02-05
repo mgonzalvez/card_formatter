@@ -11,6 +11,18 @@
   --radius: 18px;
 }
 
+body[data-theme="dark"] {
+  --bg: #12100d;
+  --bg-accent: #1f1a15;
+  --panel: #1b1712;
+  --ink: #f2e9dc;
+  --ink-muted: #c1b5a3;
+  --accent: #e28a5e;
+  --accent-dark: #cc7146;
+  --border: #2d261e;
+  --shadow: rgba(0, 0, 0, 0.35);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -69,6 +81,23 @@ h1 {
   border: 1px solid var(--border);
 }
 
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-label {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
 .stat {
   font-size: 12px;
   text-transform: uppercase;
@@ -108,7 +137,7 @@ h1 {
   border: 1px dashed var(--border);
   border-radius: 16px;
   padding: 18px;
-  background: #fff7ec;
+  background: color-mix(in srgb, var(--panel) 80%, var(--bg-accent));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -163,7 +192,7 @@ h1 {
   height: 20px;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel);
   color: var(--ink-muted);
   font-size: 12px;
   font-weight: 600;
@@ -177,8 +206,8 @@ h1 {
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1e1b16;
-  color: #fff;
+  background: var(--ink);
+  color: var(--panel);
   padding: 8px 10px;
   border-radius: 8px;
   font-size: 12px;
@@ -312,7 +341,7 @@ input[type="number"] {
   font-family: "Space Grotesk", sans-serif;
   font-size: 14px;
   color: var(--ink);
-  background: #fff;
+  background: var(--panel);
 }
 
 .helper {
@@ -371,13 +400,13 @@ input[type="number"] {
   font-family: "Space Grotesk", sans-serif;
   font-size: 12px;
   color: var(--ink);
-  background: #fff;
+  background: var(--panel);
 }
 
 .thumb {
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--panel);
   padding: 6px;
   display: grid;
   gap: 6px;
@@ -399,7 +428,7 @@ input[type="number"] {
 }
 
 .preview-shell {
-  background: #fff7ec;
+  background: color-mix(in srgb, var(--panel) 80%, var(--bg-accent));
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
