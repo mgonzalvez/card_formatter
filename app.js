@@ -23,10 +23,17 @@ const applyBackBtn = document.getElementById("applyBackBtn");
 const selectAllFronts = document.getElementById("selectAllFronts");
 const thumbToolbar = document.querySelector(".thumb-toolbar");
 const backAssignHelper = document.getElementById("backAssignHelper");
+const unitToggle = document.getElementById("unitToggle");
+const unitLabel = document.getElementById("unitLabel");
+const heroCardSize = document.getElementById("heroCardSize");
+const heroBleed = document.getElementById("heroBleed");
+const layoutHelper = document.getElementById("layoutHelper");
+const gutterLabel = document.getElementById("gutterLabel");
 const exportHeading = document.getElementById("exportHeading");
 const duplexNote = document.getElementById("duplexNote");
 let storedPreviewBackState = previewBackToggle.checked;
 let backAssignments = [];
+let lastUnitMetric = false;
 
 const BLEED_GAP_IN = 0.25;
 const BLEED_EXTEND_IN = 0.25;
@@ -52,12 +59,81 @@ function inchesToPoints(inches) {
   return inches * POINTS_PER_IN;
 }
 
+function inchesToMm(inches) {
+  return inches * 25.4;
+}
+
+function formatNumber(value, decimals = 1) {
+  const fixed = value.toFixed(decimals);
+  return fixed.endsWith(".0") ? fixed.slice(0, -2) : fixed;
+}
+
+function formatSizeLabel(size, useMetric) {
+  if (useMetric) {
+    const w = formatNumber(inchesToMm(size.w), 1);
+    const h = formatNumber(inchesToMm(size.h), 1);
+    return `${w} × ${h} mm`;
+  }
+  return `${formatNumber(size.w, 2)}" × ${formatNumber(size.h, 2)}"`;
+}
+
+function getGutterValueInInches() {
+  const raw = Number(gutterInput.value || 0);
+  if (Number.isNaN(raw)) return 0;
+  return unitToggle.checked ? raw / 25.4 : raw;
+}
+
+function updateUnitDisplay() {
+  const useMetric = unitToggle.checked;
+  unitLabel.textContent = useMetric ? "Units: Metric (mm)" : "Units: Imperial (inches)";
+  gutterLabel.textContent = useMetric ? "Gutterfold center gutter (mm)" : "Gutterfold center gutter (in)";
+
+  if (useMetric !== lastUnitMetric) {
+    const current = Number(gutterInput.value || 0);
+    if (!Number.isNaN(current)) {
+      const next = useMetric ? inchesToMm(current) : current / 25.4;
+      gutterInput.value = formatNumber(next, useMetric ? 2 : 2);
+    }
+    lastUnitMetric = useMetric;
+  }
+
+  const sizeEntries = [
+    { key: "poker", label: "Poker" },
+    { key: "square", label: "Square" },
+    { key: "bridge", label: "Bridge" },
+    { key: "mini", label: "Mini" },
+  ];
+  const current = cardSizeSelect.value;
+  cardSizeSelect.innerHTML = "";
+  sizeEntries.forEach((entry) => {
+    const size = cardSizes[entry.key];
+    const option = document.createElement("option");
+    option.value = entry.key;
+    option.textContent = `${entry.label} (${formatSizeLabel(size, useMetric)})`;
+    cardSizeSelect.appendChild(option);
+  });
+  cardSizeSelect.value = current || "poker";
+
+  const pokerSize = cardSizes.poker;
+  heroCardSize.textContent = formatSizeLabel(pokerSize, useMetric);
+  if (useMetric) {
+    heroBleed.textContent = `${formatNumber(inchesToMm(0.25), 2)} mm between cards`;
+    layoutHelper.textContent =
+      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 6.35 mm per side. " +
+      "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
+  } else {
+    heroBleed.textContent = "0.25\" between cards";
+    layoutHelper.textContent =
+      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side. " +
+      "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
+  }
+}
 function getLayoutConfig(layout) {
   if (layout === "grid3x3") {
     return { cols: 3, rows: 3, gap: 0, centerGutter: 0 };
   }
   if (layout === "gutterfold") {
-    return { cols: 2, rows: 4, gap: 0, centerGutter: Number(gutterInput.value || 0) };
+    return { cols: 2, rows: 4, gap: 0, centerGutter: getGutterValueInInches() };
   }
   return { cols: 3, rows: 2, gap: 0, centerGutter: 0 };
 }
@@ -1049,9 +1125,16 @@ layoutSelect.addEventListener("change", () => {
 });
 
 updateLayoutUi();
+updateUnitDisplay();
 
 previewBackToggle.addEventListener("change", () => {
   storedPreviewBackState = previewBackToggle.checked;
+});
+
+unitToggle.addEventListener("change", () => {
+  updateUnitDisplay();
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
 });
 
 applyBackBtn.addEventListener("click", () => {

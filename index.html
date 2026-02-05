@@ -20,18 +20,18 @@
           crosshair guides, with flexible spacing and page sizes.
         </p>
       </div>
-      <div class="hero-card">
-        <div>
-          <p class="stat">Poker size</p>
-          <p class="stat-value">2.5" × 3.5"</p>
-        </div>
-        <div>
-          <p class="stat">Bleed gap</p>
-          <p class="stat-value">0.25" between cards</p>
-        </div>
-        <div>
-          <p class="stat">Duplex</p>
-          <p class="stat-value">Flip edge varies by layout</p>
+        <div class="hero-card">
+          <div>
+            <p class="stat">Poker size</p>
+            <p class="stat-value" id="heroCardSize">2.5" × 3.5"</p>
+          </div>
+          <div>
+            <p class="stat">Bleed gap</p>
+            <p class="stat-value" id="heroBleed">0.25" between cards</p>
+          </div>
+          <div>
+            <p class="stat">Duplex</p>
+            <p class="stat-value">Flip edge varies by layout</p>
         </div>
       </div>
     </header>
@@ -59,6 +59,13 @@
 
       <section class="panel-section">
         <h2>2. Layout Settings</h2>
+        <div class="toggle-row">
+          <label class="switch">
+            <input id="unitToggle" type="checkbox" />
+            <span class="slider"></span>
+          </label>
+          <span id="unitLabel">Units: Imperial (inches)</span>
+        </div>
         <div class="input-row">
           <label>
             Card size
@@ -98,7 +105,7 @@
 
         <div class="input-row">
           <label>
-            Gutterfold center gutter (in)
+            <span id="gutterLabel">Gutterfold center gutter (in)</span>
             <input id="gutterInput" type="number" min="0" step="0.05" value="0.25" />
           </label>
           <label>
@@ -114,7 +121,7 @@
           <button id="autoLayoutBtn" type="button">Auto-layout</button>
           <div class="helper">Chooses the best fitting layout and page size.</div>
         </div>
-        <p class="helper">
+        <p class="helper" id="layoutHelper">
           Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side. Cut guides remain at
           the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.
         </p>
