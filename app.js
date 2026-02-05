@@ -93,7 +93,7 @@ function getBleedValueInInches() {
   const raw = Number(gutterInput.value || 0);
   if (Number.isNaN(raw)) return 0.25;
   const inches = unitToggle.checked ? raw / 25.4 : raw;
-  return Math.min(0.75, Math.max(0.25, inches));
+  return Math.min(0.75, Math.max(0.10, inches));
 }
 
 function updateUnitDisplay() {
@@ -111,11 +111,11 @@ function updateUnitDisplay() {
   }
 
   if (useMetric) {
-    gutterInput.min = formatNumber(inchesToMm(0.25), 2);
+    gutterInput.min = formatNumber(inchesToMm(0.10), 2);
     gutterInput.max = formatNumber(inchesToMm(0.75), 2);
     gutterInput.step = "0.5";
   } else {
-    gutterInput.min = "0.25";
+    gutterInput.min = "0.10";
     gutterInput.max = "0.75";
     gutterInput.step = "0.05";
   }
@@ -1238,10 +1238,16 @@ function updateLayoutUi() {
     gutterInput.disabled = false;
     gutterInput.parentElement.classList.remove("is-disabled");
     gutterLabel.textContent = unitToggle.checked ? "Gutterfold center gutter (mm)" : "Gutterfold center gutter (in)";
+    if (Number(gutterInput.value) < (unitToggle.checked ? inchesToMm(0.25) : 0.25)) {
+      gutterInput.value = unitToggle.checked ? formatNumber(inchesToMm(0.25), 2) : "0.25";
+    }
   } else if (layoutSelect.value === "grid2x3bleed") {
     gutterInput.disabled = false;
     gutterInput.parentElement.classList.remove("is-disabled");
     gutterLabel.textContent = unitToggle.checked ? "Buttonshy bleed per side (mm)" : "Buttonshy bleed per side (in)";
+    if (Number(gutterInput.value) < (unitToggle.checked ? inchesToMm(0.10) : 0.10)) {
+      gutterInput.value = unitToggle.checked ? formatNumber(inchesToMm(0.10), 2) : "0.10";
+    }
   } else {
     gutterInput.disabled = true;
     gutterInput.parentElement.classList.add("is-disabled");
