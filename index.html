@@ -17,7 +17,7 @@
         <h1>Martin's Card Formatter</h1>
         <p class="lede">
           Upload your card images, pick a layout, and export a duplex-ready PDF with corner
-          crosshair guides. Designed for poker-size cards, with flexible spacing and page sizes.
+          crosshair guides, with flexible spacing and page sizes.
         </p>
       </div>
       <div class="hero-card">
@@ -46,34 +46,13 @@
             <span class="upload-sub">PNG or JPG, multiple files.</span>
           </label>
           <label class="upload-box">
-            <input id="backFile" type="file" accept="image/png,image/jpeg" />
-            <span class="upload-title">Back image (optional)</span>
-            <span class="upload-sub">Single image for all backs.</span>
-          </label>
-          <label class="upload-box">
-            <input id="backFilesPerPage" type="file" accept="image/png,image/jpeg" multiple />
-            <span class="upload-title">Back images per page</span>
-            <span class="upload-sub">One back image per output page.</span>
-          </label>
-        </div>
-        <div class="choice-row">
-          <span class="choice-label">Backs mode</span>
-          <label class="choice-pill">
-            <input type="radio" name="backMode" value="single" checked />
-            Single back
-          </label>
-          <label class="choice-pill">
-            <input type="radio" name="backMode" value="perPage" />
-            Per-page backs
+            <input id="backFiles" type="file" accept="image/png,image/jpeg" multiple />
+            <span class="upload-title">Back image(s)</span>
+            <span class="upload-sub">Upload 1 for all cards, or multiple to assign per card.</span>
           </label>
         </div>
         <div class="toggle-row">
-          <label class="switch">
-            <input id="duplexToggle" type="checkbox" checked />
-            <span class="slider"></span>
-          </label>
-          <span>Include duplex backs</span>
-          <span class="duplex-note" id="duplexNote">Flip on long edge for 3 × 3. Flip on short edge for 2 × 3.</span>
+          <span class="duplex-note" id="duplexNote">Upload a back image to enable duplex output.</span>
           <span class="info-badge" title="Flip edge depends on layout. Backs are mirrored to align after printing and flipping.">i</span>
         </div>
       </section>
@@ -93,9 +72,9 @@
           <label>
             Output format
             <select id="layoutSelect">
-              <option value="grid3x3">3 × 3 grid</option>
+              <option value="grid3x3">Traditional card grid</option>
               <option value="gutterfold">Gutterfold (2 columns)</option>
-              <option value="grid2x3bleed">2 × 3 Buttonshy Games Style (0.25" edge bleed)</option>
+              <option value="grid2x3bleed">Buttonshy Games Style (with bleed)</option>
             </select>
           </label>
           <label>
@@ -124,11 +103,11 @@
           </label>
           <label>
             Crosshair length (px)
-            <input id="crosshairLength" type="number" min="10" step="1" value="25" />
+            <input id="crosshairLength" type="number" min="10" max="30" step="1" value="20" />
           </label>
           <label>
             Crosshair stroke (pt)
-            <input id="crosshairStroke" type="number" min="1" step="0.5" value="2" />
+            <input id="crosshairStroke" type="number" min="1" max="3" step="0.5" value="1" />
           </label>
         </div>
         <div class="action-row">
@@ -136,9 +115,8 @@
           <div class="helper">Chooses the best fitting layout and page size.</div>
         </div>
         <p class="helper">
-          Note: The 2 × 3 Buttonshy Games Style is interpreted as 3 columns × 2 rows, uses a landscape page, and extends
-          image edges by 0.25\" per side. Cut guides remain at the original card size. 3 × 3 uses a portrait page and flips on
-          the long edge when duplex.
+          Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side. Cut guides remain at
+          the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.
         </p>
       </section>
 
@@ -159,13 +137,23 @@
 
       <section class="panel-section">
         <h2>4. Thumbnails</h2>
+        <div class="thumb-toolbar">
+          <label class="thumb-checkbox">
+            <input type="checkbox" id="selectAllFronts" />
+            Select all
+          </label>
+          <span class="thumb-title">Assign selected fronts to back:</span>
+          <select id="batchBackSelect"></select>
+          <button id="applyBackBtn" type="button">Apply</button>
+        </div>
+        <div class="helper" id="backAssignHelper">Upload multiple card backs to enable card back assignments.</div>
         <div class="thumb-grid" id="frontThumbs"></div>
         <div class="thumb-grid" id="backThumbs"></div>
         <div class="helper" id="thumbMeta">Upload images to see thumbnails.</div>
       </section>
 
       <section class="panel-section">
-        <h2>5. Export</h2>
+        <h2 id="exportHeading">5. Export</h2>
         <div class="action-row">
           <button id="generateBtn">Generate PDF</button>
           <div class="status" id="status">Waiting for files…</div>

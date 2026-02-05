@@ -1,10 +1,7 @@
 const { PDFDocument, rgb, degrees } = PDFLib;
 
 const frontFilesInput = document.getElementById("frontFiles");
-const backFileInput = document.getElementById("backFile");
-const backFilesPerPageInput = document.getElementById("backFilesPerPage");
-const backModeInputs = Array.from(document.querySelectorAll("input[name=\"backMode\"]"));
-const duplexToggle = document.getElementById("duplexToggle");
+const backFilesInput = document.getElementById("backFiles");
 const layoutSelect = document.getElementById("layoutSelect");
 const pageSizeSelect = document.getElementById("pageSizeSelect");
 const cardSizeSelect = document.getElementById("cardSizeSelect");
@@ -21,9 +18,15 @@ const autoLayoutBtn = document.getElementById("autoLayoutBtn");
 const frontThumbs = document.getElementById("frontThumbs");
 const backThumbs = document.getElementById("backThumbs");
 const thumbMeta = document.getElementById("thumbMeta");
+const batchBackSelect = document.getElementById("batchBackSelect");
+const applyBackBtn = document.getElementById("applyBackBtn");
+const selectAllFronts = document.getElementById("selectAllFronts");
+const thumbToolbar = document.querySelector(".thumb-toolbar");
+const backAssignHelper = document.getElementById("backAssignHelper");
+const exportHeading = document.getElementById("exportHeading");
 const duplexNote = document.getElementById("duplexNote");
-let storedDuplexState = duplexToggle.checked;
 let storedPreviewBackState = previewBackToggle.checked;
+let backAssignments = [];
 
 const BLEED_GAP_IN = 0.25;
 const BLEED_EXTEND_IN = 0.25;
@@ -347,9 +350,36 @@ function chunkArray(array, size) {
   return chunks;
 }
 
-function getBackMode() {
-  const selected = backModeInputs.find((input) => input.checked);
-  return selected?.value || "single";
+function getBackFiles() {
+  return Array.from(backFilesInput.files || []);
+}
+
+function normalizeAssignments(frontCount, backCount) {
+  if (backCount === 0) {
+    backAssignments = [];
+    return;
+  }
+  if (backCount === 1) {
+    backAssignments = Array(frontCount).fill(0);
+    return;
+  }
+  if (backAssignments.length !== frontCount) {
+    const next = Array(frontCount).fill(0);
+    backAssignments.forEach((value, index) => {
+      if (index < frontCount) {
+        next[index] = Math.min(value, backCount - 1);
+      }
+    });
+    backAssignments = next;
+    return;
+  }
+  backAssignments = backAssignments.map((value) => Math.min(value, backCount - 1));
+}
+
+function getAssignedBackIndex(cardIndex, backCount) {
+  if (backCount === 0) return null;
+  if (backCount === 1) return 0;
+  return backAssignments[cardIndex] ?? 0;
 }
 
 function layoutFits(pageSize, layoutConfig, cardSize) {
@@ -388,9 +418,9 @@ function suggestAlternatives(pageKey, layoutKey, cardKey) {
 }
 
 function formatLayoutName(layout) {
-  if (layout === "grid3x3") return "3 × 3 grid";
+  if (layout === "grid3x3") return "Traditional card grid";
   if (layout === "gutterfold") return "Gutterfold";
-  return "2 × 3 with 0.25\" gap";
+  return "Buttonshy Games Style (with bleed)";
 }
 
 function formatPageName(page) {
@@ -446,13 +476,14 @@ async function loadPreviewImages(files, options = {}) {
 
 async function renderThumbnails() {
   const frontFiles = Array.from(frontFilesInput.files || []);
-  const backFilesPerPage = Array.from(backFilesPerPageInput.files || []);
-  const backFile = backFileInput.files?.[0];
-  const backMode = getBackMode();
+  const backFiles = getBackFiles();
   const bleedIn = layoutSelect.value === "grid2x3bleed" ? BLEED_EXTEND_IN : 0;
   const cardSizeInches = getCardSizeInches();
+  const backCount = backFiles.length;
 
-  const frontList = frontFiles.slice(0, 12);
+  normalizeAssignments(frontFiles.length, backCount);
+
+  const frontList = frontFiles;
   const frontImages = await loadPreviewImages(frontList, { bleedIn, cardSizeInches });
   frontThumbs.innerHTML = "";
   frontImages.forEach((img, index) => {
@@ -464,24 +495,51 @@ async function renderThumbnails() {
     label.textContent = frontList[index]?.name || `Front ${index + 1}`;
     wrapper.appendChild(image);
     wrapper.appendChild(label);
+
+    if (backCount > 1) {
+      const controls = document.createElement("div");
+      controls.className = "thumb-controls";
+
+      const checkboxLabel = document.createElement("label");
+      checkboxLabel.className = "thumb-checkbox";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.dataset.index = String(index);
+      checkbox.addEventListener("change", () => {
+        if (!checkbox.checked) {
+          selectAllFronts.checked = false;
+        }
+      });
+      checkboxLabel.appendChild(checkbox);
+      checkboxLabel.appendChild(document.createTextNode("Select"));
+      controls.appendChild(checkboxLabel);
+
+      const select = document.createElement("select");
+      select.dataset.index = String(index);
+      backFiles.forEach((file, backIndex) => {
+        const option = document.createElement("option");
+        option.value = String(backIndex);
+        option.textContent = `Back ${backIndex + 1}`;
+        select.appendChild(option);
+      });
+      select.value = String(getAssignedBackIndex(index, backCount) ?? 0);
+      select.addEventListener("change", (event) => {
+        const target = event.target;
+        const cardIndex = Number(target.dataset.index);
+        backAssignments[cardIndex] = Number(target.value);
+        renderPreview().catch((error) => console.error(error));
+        renderThumbnails().catch((error) => console.error(error));
+      });
+      controls.appendChild(select);
+
+      wrapper.appendChild(controls);
+    }
     frontThumbs.appendChild(wrapper);
   });
 
   backThumbs.innerHTML = "";
-  if (backMode === "single" && backFile) {
-    const [img] = await loadPreviewImages([backFile], { bleedIn, cardSizeInches });
-    const wrapper = document.createElement("div");
-    wrapper.className = "thumb";
-    const image = document.createElement("img");
-    image.src = img.src;
-    const label = document.createElement("span");
-    label.textContent = backFile.name || "Back";
-    wrapper.appendChild(image);
-    wrapper.appendChild(label);
-    backThumbs.appendChild(wrapper);
-  }
-  if (backMode === "perPage" && backFilesPerPage.length) {
-    const backList = backFilesPerPage.slice(0, 12);
+  if (backCount) {
+    const backList = backFiles;
     const backImages = await loadPreviewImages(backList, { bleedIn, cardSizeInches });
     backImages.forEach((img, index) => {
       const wrapper = document.createElement("div");
@@ -496,11 +554,34 @@ async function renderThumbnails() {
     });
   }
 
-  const backCount = backMode === "single" ? (backFile ? 1 : 0) : backFilesPerPage.length;
   if (!frontFiles.length && !backCount) {
     thumbMeta.textContent = "Upload images to see thumbnails.";
   } else {
     thumbMeta.textContent = `${frontFiles.length} front image(s), ${backCount} back image(s) loaded.`;
+  }
+
+  batchBackSelect.innerHTML = "";
+  selectAllFronts.checked = false;
+  if (backCount > 1) {
+    thumbToolbar.style.display = "flex";
+    backAssignHelper.style.display = "none";
+    backFiles.forEach((file, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `Back ${index + 1}`;
+      batchBackSelect.appendChild(option);
+    });
+    batchBackSelect.disabled = false;
+    applyBackBtn.disabled = false;
+  } else {
+    thumbToolbar.style.display = "none";
+    backAssignHelper.style.display = "block";
+    const option = document.createElement("option");
+    option.textContent = "No backs uploaded";
+    option.value = "0";
+    batchBackSelect.appendChild(option);
+    batchBackSelect.disabled = true;
+    applyBackBtn.disabled = true;
   }
 }
 
@@ -518,10 +599,14 @@ async function renderPreview() {
   const flipAxis = getDuplexFlipAxis(layoutSelect.value);
   const backPositions = getMirroredPositions(positions, pageSize.w, pageSize.h, flipAxis);
   const fitMode = fitSelect.value;
-  const previewBack = previewBackToggle.checked && duplexToggle.checked && !isGutterfold(layoutSelect.value);
-  const backMode = getBackMode();
-  const backFile = backFileInput.files?.[0];
-  const backFilesPerPage = Array.from(backFilesPerPageInput.files || []);
+  const crosshairLength = Number(crosshairLengthInput.value || 50);
+  const crosshairStroke = Number(crosshairStrokeInput.value || 3);
+  const backFiles = getBackFiles();
+  const backCount = backFiles.length;
+  normalizeAssignments(frontFiles.length, backCount);
+  const hasBacks = backCount > 0;
+  const duplexEnabled = hasBacks && !isGutterfold(layoutSelect.value);
+  const previewBack = previewBackToggle.checked && duplexEnabled;
 
   if (!fits.fits) {
     const suggestions = suggestAlternatives(pageSizeSelect.value, layoutSelect.value, cardSizeSelect.value);
@@ -565,32 +650,30 @@ async function renderPreview() {
     ctx.restore();
   }
 
-  let previewFiles = frontFiles;
+  let cardImages = [];
   if (previewBack) {
-    if (backMode === "single" && backFile) {
-      previewFiles = [backFile];
-    } else if (backMode === "perPage" && backFilesPerPage.length) {
-      previewFiles = [backFilesPerPage[0]];
+    if (backFiles.length) {
+      const backImages = await loadPreviewImages(backFiles, { bleedIn, cardSizeInches });
+      const perPage = positions.length;
+      for (let i = 0; i < perPage; i += 1) {
+        const backIndex = getAssignedBackIndex(i, backCount);
+        cardImages.push(backIndex !== null ? backImages[backIndex] : backImages[0]);
+      }
     } else {
-      previewFiles = [];
+      cardImages = [];
       previewMeta.textContent = "No back image available for preview. Upload a back image.";
     }
+  } else {
+    cardImages = frontFiles.length
+      ? await loadPreviewImages(frontFiles.slice(0, positions.length), { bleedIn, cardSizeInches })
+      : [];
   }
-
-  const frontImages = previewFiles.length
-    ? await loadPreviewImages(previewFiles.slice(0, positions.length), { bleedIn, cardSizeInches })
-    : [];
 
   if (isGutterfold(layoutSelect.value)) {
     const leftPositions = positions.filter((_, index) => index % 2 === 0);
     const rightPositions = positions.filter((_, index) => index % 2 === 1);
     const frontImagesGutter = frontFiles.length ? await loadPreviewImages(frontFiles.slice(0, leftPositions.length)) : [];
-    let backImagesGutter = [];
-    if (backMode === "single" && backFile) {
-      [backImagesGutter] = [await loadPreviewImages([backFile])];
-    } else if (backMode === "perPage" && backFilesPerPage.length) {
-      [backImagesGutter] = [await loadPreviewImages([backFilesPerPage[0]])];
-    }
+    const backImagesGutter = backFiles.length ? await loadPreviewImages(backFiles, { bleedIn, cardSizeInches }) : [];
 
     leftPositions.forEach((box, index) => {
       const x = pageX + box.x * scale;
@@ -619,9 +702,11 @@ async function renderPreview() {
         ctx.fillStyle = "#f3ebe0";
         ctx.fillRect(x, y, w, h);
       }
+
+      drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, 0);
     });
 
-    rightPositions.forEach((box) => {
+    rightPositions.forEach((box, index) => {
       const x = pageX + box.x * scale;
       const y = pageY + (pageSize.h - box.y - box.height) * scale;
       const w = box.width * scale;
@@ -630,7 +715,8 @@ async function renderPreview() {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(x, y, w, h);
 
-      const img = backImagesGutter[0];
+      const backIndex = getAssignedBackIndex(index, backCount);
+      const img = backIndex !== null ? backImagesGutter[backIndex] : backImagesGutter[0];
       if (img) {
         ctx.save();
         ctx.translate(x, y + h);
@@ -648,6 +734,8 @@ async function renderPreview() {
         ctx.fillStyle = "#f3ebe0";
         ctx.fillRect(x, y, w, h);
       }
+
+      drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, 0);
     });
 
     return;
@@ -665,7 +753,7 @@ async function renderPreview() {
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y, w, h);
 
-    const img = frontImages[index] || frontImages[0];
+    const img = cardImages[index] || cardImages[0];
     if (img) {
       const imgScale = fitMode === "contain"
         ? Math.min(w / img.width, h / img.height)
@@ -689,26 +777,59 @@ async function renderPreview() {
       ctx.strokeRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
       ctx.restore();
     }
+
+    drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, crosshairInsetPt * scale);
   });
+}
+
+function drawPreviewCrosshairs(ctx, x, y, w, h, lengthPx, strokePt, insetPx = 0) {
+  const half = lengthPx / 2;
+  const corners = [
+    { x: x + insetPx, y: y + insetPx },
+    { x: x + w - insetPx, y: y + insetPx },
+    { x: x + insetPx, y: y + h - insetPx },
+    { x: x + w - insetPx, y: y + h - insetPx },
+  ];
+
+  ctx.save();
+  ctx.setLineDash([6, 6]);
+  corners.forEach((corner) => {
+    const horizontal = {
+      start: { x: corner.x + (corner.x === x + insetPx ? -half : half), y: corner.y },
+      end: { x: corner.x + (corner.x === x + insetPx ? half : -half), y: corner.y },
+    };
+    const vertical = {
+      start: { x: corner.x, y: corner.y + (corner.y === y + insetPx ? -half : half) },
+      end: { x: corner.x, y: corner.y + (corner.y === y + insetPx ? half : -half) },
+    };
+
+    [horizontal, vertical].forEach((line) => {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = strokePt + 2;
+      ctx.beginPath();
+      ctx.moveTo(line.start.x, line.start.y);
+      ctx.lineTo(line.end.x, line.end.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = strokePt;
+      ctx.beginPath();
+      ctx.moveTo(line.start.x, line.start.y);
+      ctx.lineTo(line.end.x, line.end.y);
+      ctx.stroke();
+    });
+  });
+  ctx.restore();
 }
 
 async function generatePdf() {
   const frontFiles = Array.from(frontFilesInput.files || []);
-  const duplex = duplexToggle.checked;
-  const backFile = backFileInput.files?.[0];
-  const backFilesPerPage = Array.from(backFilesPerPageInput.files || []);
-  const backMode = getBackMode();
+  const backFiles = getBackFiles();
+  const backCount = backFiles.length;
+  normalizeAssignments(frontFiles.length, backCount);
 
   if (frontFiles.length === 0) {
     setStatus("Please add at least one front image.");
-    return;
-  }
-  if (duplex && backMode === "single" && !backFile) {
-    setStatus("Please add a back image for duplex printing.");
-    return;
-  }
-  if (duplex && backMode === "perPage" && backFilesPerPage.length === 0) {
-    setStatus("Please add back images for each page.");
     return;
   }
 
@@ -733,6 +854,7 @@ async function generatePdf() {
   const fitMode = fitSelect.value;
   const crosshairLength = Number(crosshairLengthInput.value || 50);
   const crosshairStroke = Number(crosshairStrokeInput.value || 3);
+  const duplex = backCount > 0 && !isGutterfold(layoutKey);
 
   const frontEmbeds = [];
   for (const file of frontFiles) {
@@ -743,31 +865,20 @@ async function generatePdf() {
     }
   }
 
-  const backEmbed = duplex && backMode === "single"
-    ? (bleedIn > 0
-      ? await embedImageWithBleed(pdfDoc, backFile, bleedIn, cardSizeInches)
-      : await embedImage(pdfDoc, backFile))
-    : null;
-  const backEmbedsPerPage = [];
-  if (duplex && backMode === "perPage") {
-    for (const file of backFilesPerPage) {
-      if (bleedIn > 0) {
-        backEmbedsPerPage.push(await embedImageWithBleed(pdfDoc, file, bleedIn, cardSizeInches));
-      } else {
-        backEmbedsPerPage.push(await embedImage(pdfDoc, file));
-      }
+  const backEmbeds = [];
+  for (const file of backFiles) {
+    if (bleedIn > 0) {
+      backEmbeds.push(await embedImageWithBleed(pdfDoc, file, bleedIn, cardSizeInches));
+    } else {
+      backEmbeds.push(await embedImage(pdfDoc, file));
     }
   }
 
-  if (isGutterfold(layoutSelect.value)) {
+  if (isGutterfold(layoutKey)) {
     const leftPositions = positions.filter((_, index) => index % 2 === 0);
     const rightPositions = positions.filter((_, index) => index % 2 === 1);
     const perPage = leftPositions.length;
     const pages = chunkArray(frontEmbeds, perPage);
-    const backEmbedGutter = backMode === "single" && backFile ? await embedImage(pdfDoc, backFile) : null;
-    const backEmbedsGutterPerPage = backMode === "perPage"
-      ? await Promise.all(backFilesPerPage.map((file) => embedImage(pdfDoc, file)))
-      : [];
 
     pages.forEach((pageImages, pageIndex) => {
       const page = pdfDoc.addPage([pageSize.w, pageSize.h]);
@@ -779,14 +890,13 @@ async function generatePdf() {
         drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
       });
 
-      const backForPage = backMode === "perPage"
-        ? backEmbedsGutterPerPage[pageIndex] || backEmbedsGutterPerPage[backEmbedsGutterPerPage.length - 1]
-        : backEmbedGutter;
-
-      rightPositions.forEach((box) => {
+      rightPositions.forEach((box, index) => {
         if (!box) return;
-        if (backForPage) {
-          drawImageFitRotated(page, backForPage, box, fitMode, 270);
+        const globalIndex = pageIndex * perPage + index;
+        const backIndex = getAssignedBackIndex(globalIndex, backCount);
+        const backEmbed = backIndex !== null ? backEmbeds[backIndex] : null;
+        if (backEmbed) {
+          drawImageFitRotated(page, backEmbed, box, fitMode, 270);
         }
         drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
       });
@@ -807,10 +917,6 @@ async function generatePdf() {
   const perPage = positions.length;
   const pages = chunkArray(frontEmbeds, perPage);
 
-  if (duplex && backMode === "perPage" && backEmbedsPerPage.length < pages.length) {
-    setStatus("Not enough back images for all pages. The last back image will repeat.");
-  }
-
   pages.forEach((pageImages, pageIndex) => {
     const page = pdfDoc.addPage([pageSize.w, pageSize.h]);
     pageImages.forEach((image, index) => {
@@ -822,14 +928,14 @@ async function generatePdf() {
 
     if (duplex) {
       const backPage = pdfDoc.addPage([pageSize.w, pageSize.h]);
-      const pageBackEmbed = backMode === "perPage"
-        ? backEmbedsPerPage[pageIndex] || backEmbedsPerPage[backEmbedsPerPage.length - 1]
-        : backEmbed;
       pageImages.forEach((_, index) => {
         const box = backPositions[index];
         if (!box) return;
-        if (pageBackEmbed) {
-          drawImageFit(backPage, pageBackEmbed, box, fitMode);
+        const globalIndex = pageIndex * perPage + index;
+        const backIndex = getAssignedBackIndex(globalIndex, backCount);
+        const backEmbed = backIndex !== null ? backEmbeds[backIndex] : null;
+        if (backEmbed) {
+          drawImageFit(backPage, backEmbed, box, fitMode);
         }
         drawCrosshairs(backPage, box, crosshairLength, crosshairStroke, crosshairInsetPt);
       });
@@ -859,9 +965,7 @@ generateBtn.addEventListener("click", () => {
 function wirePreviewUpdates() {
   const inputs = [
     frontFilesInput,
-    backFileInput,
-    backFilesPerPageInput,
-    duplexToggle,
+    backFilesInput,
     layoutSelect,
     pageSizeSelect,
     cardSizeSelect,
@@ -877,12 +981,6 @@ function wirePreviewUpdates() {
       renderThumbnails().catch((error) => console.error(error));
     });
   });
-  backModeInputs.forEach((input) => {
-    input.addEventListener("change", () => {
-      renderPreview().catch((error) => console.error(error));
-      renderThumbnails().catch((error) => console.error(error));
-    });
-  });
 }
 
 frontFilesInput.addEventListener("change", () => {
@@ -890,36 +988,16 @@ frontFilesInput.addEventListener("change", () => {
   setStatus(count ? `${count} front image(s) ready.` : "Waiting for files…");
 });
 
-backFileInput.addEventListener("change", () => {
-  if (backFileInput.files?.length) {
-    setStatus("Back image ready.");
+backFilesInput.addEventListener("change", () => {
+  if (backFilesInput.files?.length) {
+    setStatus("Back image(s) ready.");
   }
-});
-
-backFilesPerPageInput.addEventListener("change", () => {
-  if (backFilesPerPageInput.files?.length) {
-    setStatus("Back images ready.");
-  }
+  updateLayoutUi();
 });
 
 wirePreviewUpdates();
 renderPreview().catch((error) => console.error(error));
 renderThumbnails().catch((error) => console.error(error));
-
-function updateBackInputs() {
-  const mode = getBackMode();
-  const useSingle = mode === "single";
-  backFileInput.disabled = !useSingle;
-  backFilesPerPageInput.disabled = useSingle;
-  backFileInput.parentElement.classList.toggle("is-disabled", !useSingle);
-  backFilesPerPageInput.parentElement.classList.toggle("is-disabled", useSingle);
-}
-
-backModeInputs.forEach((input) => {
-  input.addEventListener("change", updateBackInputs);
-});
-
-updateBackInputs();
 
 autoLayoutBtn.addEventListener("click", () => {
   const choice = pickAutoLayout();
@@ -936,42 +1014,66 @@ autoLayoutBtn.addEventListener("click", () => {
 
 function updateLayoutUi() {
   const gutterfold = isGutterfold(layoutSelect.value);
-previewBackToggle.disabled = gutterfold;
+  const backFiles = getBackFiles();
+  const hasBacks = backFiles.length > 0;
+
+  exportHeading.textContent = `5. Export ${formatLayoutName(layoutSelect.value)}`;
+
+  previewBackToggle.disabled = gutterfold || !hasBacks;
   if (gutterfold) {
     storedPreviewBackState = previewBackToggle.checked;
     previewBackToggle.checked = false;
     previewMeta.textContent = "Gutterfold shows fronts + backs on one sheet.";
+  } else if (!hasBacks) {
+    storedPreviewBackState = previewBackToggle.checked;
+    previewBackToggle.checked = false;
   } else {
     previewBackToggle.checked = storedPreviewBackState;
-  }
-duplexToggle.disabled = gutterfold;
-  if (gutterfold) {
-    storedDuplexState = duplexToggle.checked;
-    duplexToggle.checked = false;
-  } else {
-    duplexToggle.checked = storedDuplexState;
   }
 
   if (gutterfold) {
     duplexNote.textContent = "Gutterfold prints fronts and backs on one sheet (no flip).";
+  } else if (!hasBacks) {
+    duplexNote.textContent = "Upload a back image to enable duplex output.";
   } else if (layoutSelect.value === "grid2x3bleed") {
-    duplexNote.textContent = "Flip on short edge for 2 × 3.";
+    duplexNote.textContent = "Flip on short edge for Buttonshy Games Style.";
   } else {
-    duplexNote.textContent = "Flip on long edge for 3 × 3.";
+    duplexNote.textContent = "Flip on long edge for Traditional card grid.";
   }
 }
 
 layoutSelect.addEventListener("change", () => {
+  previewBackToggle.checked = false;
   updateLayoutUi();
   renderPreview().catch((error) => console.error(error));
 });
 
 updateLayoutUi();
 
-duplexToggle.addEventListener("change", () => {
-  storedDuplexState = duplexToggle.checked;
-});
-
 previewBackToggle.addEventListener("change", () => {
   storedPreviewBackState = previewBackToggle.checked;
+});
+
+applyBackBtn.addEventListener("click", () => {
+  const backCount = getBackFiles().length;
+  if (backCount === 0) return;
+  const selected = Array.from(frontThumbs.querySelectorAll("input[type=\"checkbox\"]:checked"));
+  if (!selected.length) return;
+  const backIndex = Number(batchBackSelect.value || 0);
+  selected.forEach((input) => {
+    const cardIndex = Number(input.dataset.index);
+    if (!Number.isNaN(cardIndex)) {
+      backAssignments[cardIndex] = backIndex;
+    }
+  });
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
+});
+
+selectAllFronts.addEventListener("change", () => {
+  const checked = selectAllFronts.checked;
+  const checkboxes = frontThumbs.querySelectorAll("input[type=\"checkbox\"]");
+  checkboxes.forEach((input) => {
+    input.checked = checked;
+  });
 });
