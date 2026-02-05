@@ -25,9 +25,13 @@ const thumbToolbar = document.querySelector(".thumb-toolbar");
 const backAssignHelper = document.getElementById("backAssignHelper");
 const unitToggle = document.getElementById("unitToggle");
 const unitLabel = document.getElementById("unitLabel");
-const heroCardSize = document.getElementById("heroCardSize");
-const heroBleed = document.getElementById("heroBleed");
 const layoutHelper = document.getElementById("layoutHelper");
+const summaryLabel1 = document.getElementById("summaryLabel1");
+const summaryValue1 = document.getElementById("summaryValue1");
+const summaryLabel2 = document.getElementById("summaryLabel2");
+const summaryValue2 = document.getElementById("summaryValue2");
+const summaryLabel3 = document.getElementById("summaryLabel3");
+const summaryValue3 = document.getElementById("summaryValue3");
 const gutterLabel = document.getElementById("gutterLabel");
 const exportHeading = document.getElementById("exportHeading");
 const duplexNote = document.getElementById("duplexNote");
@@ -114,19 +118,54 @@ function updateUnitDisplay() {
   });
   cardSizeSelect.value = current || "poker";
 
-  const pokerSize = cardSizes.poker;
-  heroCardSize.textContent = formatSizeLabel(pokerSize, useMetric);
   if (useMetric) {
-    heroBleed.textContent = `${formatNumber(inchesToMm(0.25), 2)} mm between cards`;
     layoutHelper.textContent =
       "Note: Buttonshy Games Style uses a landscape page and extends image edges by 6.35 mm per side. " +
       "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
   } else {
-    heroBleed.textContent = "0.25\" between cards";
     layoutHelper.textContent =
       "Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side. " +
       "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
   }
+  updateSummary();
+}
+
+function updateSummary() {
+  const layoutKey = layoutSelect.value;
+  const useMetric = unitToggle.checked;
+  const cardSize = cardSizes[cardSizeSelect.value] || cardSizes.poker;
+  const backCount = getBackFiles().length;
+
+  summaryLabel1.textContent = "Layout";
+  summaryValue1.textContent = formatLayoutName(layoutKey);
+
+  summaryLabel2.textContent = "Card size";
+  summaryValue2.textContent = formatSizeLabel(cardSize, useMetric);
+
+  summaryLabel3.textContent = "Details";
+  let detailParts = [];
+  if (layoutKey === "grid2x3bleed") {
+    const bleed = useMetric ? `${formatNumber(inchesToMm(0.25), 2)} mm` : `0.25"`;
+    detailParts.push(`Bleed: ${bleed} per side`);
+  } else if (layoutKey === "gutterfold") {
+    const gutterIn = getGutterValueInInches();
+    const gutter = useMetric ? `${formatNumber(inchesToMm(gutterIn), 2)} mm` : `${formatNumber(gutterIn, 2)}"`;
+    detailParts.push(`Gutter: ${gutter}`);
+  } else {
+    detailParts.push("Bleed: none");
+  }
+
+  if (layoutKey === "gutterfold") {
+    detailParts.push(backCount > 0 ? "Backs: same sheet (no duplex)" : "Backs: none");
+  } else if (backCount === 0) {
+    detailParts.push("Backs: none");
+  } else if (backCount === 1) {
+    detailParts.push("Backs: 1 (duplex)");
+  } else {
+    detailParts.push(`Backs: ${backCount} (duplex)`);
+  }
+
+  summaryValue3.textContent = detailParts.join(" · ");
 }
 function getLayoutConfig(layout) {
   if (layout === "grid3x3") {
@@ -270,8 +309,32 @@ async function loadImageFromFile(file) {
   });
 }
 
-async function createBleedDataUrl(file, bleedIn, cardSizeInches) {
+async function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = dataUrl;
+  });
+}
+
+async function getNormalizedDataUrl(file) {
   const img = await loadImageFromFile(file);
+  if (img.width > img.height) {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.height;
+    canvas.height = img.width;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    return canvas.toDataURL("image/png");
+  }
+  return readFileAsDataUrl(file);
+}
+
+async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches) {
+  const img = await loadImageFromDataUrl(dataUrl);
   const bleedPxX = Math.max(1, Math.round((bleedIn / cardSizeInches.w) * img.width));
   const bleedPxY = Math.max(1, Math.round((bleedIn / cardSizeInches.h) * img.height));
 
@@ -291,21 +354,14 @@ async function createBleedDataUrl(file, bleedIn, cardSizeInches) {
   ctx.drawImage(img, 0, img.height - 1, 1, 1, 0, bleedPxY + img.height, bleedPxX, bleedPxY);
   ctx.drawImage(img, img.width - 1, img.height - 1, 1, 1, bleedPxX + img.width, bleedPxY + img.height, bleedPxX, bleedPxY);
 
-  ctx.drawImage(img, bleedPxX, bleedPxY);
-
   return canvas.toDataURL("image/png");
 }
 
-async function embedImage(pdfDoc, file) {
-  const bytes = await readFileAsArrayBuffer(file);
-  if (file.type === "image/png") {
-    return pdfDoc.embedPng(bytes);
+async function embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches) {
+  let dataUrl = await getNormalizedDataUrl(file);
+  if (bleedIn > 0) {
+    dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches);
   }
-  return pdfDoc.embedJpg(bytes);
-}
-
-async function embedImageWithBleed(pdfDoc, file, bleedIn, cardSizeInches) {
-  const dataUrl = await createBleedDataUrl(file, bleedIn, cardSizeInches);
   const response = await fetch(dataUrl);
   const bytes = await response.arrayBuffer();
   return pdfDoc.embedPng(bytes);
@@ -536,15 +592,11 @@ async function loadPreviewImages(files, options = {}) {
   const { bleedIn = 0, cardSizeInches = null } = options;
   const images = [];
   for (const file of files) {
-    let img = await loadImageFromFile(file);
+    let dataUrl = await getNormalizedDataUrl(file);
     if (bleedIn > 0 && cardSizeInches) {
-      const dataUrl = await createBleedDataUrl(file, bleedIn, cardSizeInches);
-      img = await new Promise((resolve) => {
-        const extended = new Image();
-        extended.onload = () => resolve(extended);
-        extended.src = dataUrl;
-      });
+      dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches);
     }
+    const img = await loadImageFromDataUrl(dataUrl);
     images.push(img);
   }
   return images;
@@ -934,20 +986,12 @@ async function generatePdf() {
 
   const frontEmbeds = [];
   for (const file of frontFiles) {
-    if (bleedIn > 0) {
-      frontEmbeds.push(await embedImageWithBleed(pdfDoc, file, bleedIn, cardSizeInches));
-    } else {
-      frontEmbeds.push(await embedImage(pdfDoc, file));
-    }
+    frontEmbeds.push(await embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches));
   }
 
   const backEmbeds = [];
   for (const file of backFiles) {
-    if (bleedIn > 0) {
-      backEmbeds.push(await embedImageWithBleed(pdfDoc, file, bleedIn, cardSizeInches));
-    } else {
-      backEmbeds.push(await embedImage(pdfDoc, file));
-    }
+    backEmbeds.push(await embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches));
   }
 
   if (isGutterfold(layoutKey)) {
@@ -1055,6 +1099,7 @@ function wirePreviewUpdates() {
     input.addEventListener("change", () => {
       renderPreview().catch((error) => console.error(error));
       renderThumbnails().catch((error) => console.error(error));
+      updateSummary();
     });
   });
 }
@@ -1069,6 +1114,7 @@ backFilesInput.addEventListener("change", () => {
     setStatus("Back image(s) ready.");
   }
   updateLayoutUi();
+  updateSummary();
 });
 
 wirePreviewUpdates();
@@ -1094,6 +1140,7 @@ function updateLayoutUi() {
   const hasBacks = backFiles.length > 0;
 
   exportHeading.textContent = `5. Export ${formatLayoutName(layoutSelect.value)}`;
+  updateSummary();
 
   previewBackToggle.disabled = gutterfold || !hasBacks;
   if (gutterfold) {
