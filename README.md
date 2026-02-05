@@ -19,13 +19,14 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Live preview with safe-margin overlay, crosshairs, and cut-box overlay for Buttonshy.
 - Auto-layout helper and image thumbnails.
 - Multiple back images with per-card assignment and batch assignment tools.
-- Metric/imperial unit toggle.
+- Metric/imperial unit toggle with dynamic labels.
+- Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins.
 
 ## Layout Notes
 - **Traditional card grid**: Portrait page. Duplex flip on **long edge**.
-- **Buttonshy Games Style (with bleed)**: Landscape page. Images are extended by **0.25–0.75" per side** using edge-pixel bleed. Cut guides remain at the original card size. Duplex flip on **short edge**.
-- **Gutterfold (2 columns)**: Portrait page, landscape cards. Fronts in left column, backs in right column, bottoms toward the center gutter. Includes a dashed fold line. No duplex.
+- **Buttonshy Games Style (with bleed)**: Landscape page. Images are extended by **0.10–0.75" per side** using edge-pixel bleed. Cut guides remain at the original card size. Duplex flip on **short edge**.
+- **Gutterfold (2 columns)**: Portrait page, landscape cards. Fronts in left column, backs in right column, bottoms toward the center gutter. Includes a dashed fold line. No duplex. Center gutter is adjustable **0.10–0.75"**.
 
 ## Back Assignment Workflow
 - Upload **one back** to apply it to all fronts automatically.
@@ -45,8 +46,8 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 
 ## Changelog
 - Added adaptive layout summary panel and format-aware export header.
-- Added metric/imperial toggle with dynamic labels.
-- Added adjustable gutter/bleed control by layout.
+- Added metric/imperial toggle with dynamic labels and conversions.
+- Added adjustable gutter/bleed control by layout (0.10–0.75").
 - Added safe-margin overlay + hard export guardrails.
 - Added per-card back assignment UI with batch tools and Select All.
 - Added auto-rotation of landscape images to portrait.
