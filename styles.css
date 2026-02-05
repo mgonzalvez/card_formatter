@@ -286,6 +286,10 @@ h1 {
   margin-bottom: 10px;
 }
 
+.nudge-row {
+  margin-top: 12px;
+}
+
 label {
   display: flex;
   flex-direction: column;

@@ -23,6 +23,10 @@ const applyBackBtn = document.getElementById("applyBackBtn");
 const selectAllFronts = document.getElementById("selectAllFronts");
 const thumbToolbar = document.querySelector(".thumb-toolbar");
 const backAssignHelper = document.getElementById("backAssignHelper");
+const nudgeToggle = document.getElementById("nudgeToggle");
+const nudgeControls = document.getElementById("nudgeControls");
+const nudgeXInput = document.getElementById("nudgeX");
+const nudgeYInput = document.getElementById("nudgeY");
 const unitToggle = document.getElementById("unitToggle");
 const unitLabel = document.getElementById("unitLabel");
 const layoutHelper = document.getElementById("layoutHelper");
@@ -783,6 +787,9 @@ async function renderPreview() {
   const hasBacks = backCount > 0;
   const duplexEnabled = hasBacks && !isGutterfold(layoutSelect.value);
   const previewBack = previewBackToggle.checked && duplexEnabled;
+  const nudgeEnabled = nudgeToggle.checked && previewBack;
+  const nudgeXPts = inchesToPoints(Number(nudgeXInput.value || 0) / 25.4);
+  const nudgeYPts = inchesToPoints(Number(nudgeYInput.value || 0) / 25.4);
 
   if (!fits.fits || !safeFits.fits) {
     const suggestions = suggestAlternatives(pageSizeSelect.value, layoutSelect.value, cardSizeSelect.value);
@@ -960,9 +967,47 @@ async function renderPreview() {
 
   const drawPositions = previewBack ? backPositions : positions;
 
+  if (previewBack) {
+    const centerX = pageX + (pageSize.w * scale) / 2;
+    const centerY = pageY + (pageSize.h * scale) / 2;
+    ctx.save();
+    ctx.strokeStyle = "#d1592a";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(centerX - 12, centerY);
+    ctx.lineTo(centerX + 12, centerY);
+    ctx.moveTo(centerX, centerY - 12);
+    ctx.lineTo(centerX, centerY + 12);
+    ctx.stroke();
+
+    if (nudgeEnabled && (nudgeXPts !== 0 || nudgeYPts !== 0)) {
+      const dx = nudgeXPts * scale;
+      const dy = -nudgeYPts * scale;
+      ctx.strokeStyle = "#1e1b16";
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(centerX + dx, centerY + dy);
+      ctx.stroke();
+      ctx.fillStyle = "#1e1b16";
+      ctx.beginPath();
+      ctx.arc(centerX + dx, centerY + dy, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = "12px \"Space Grotesk\", sans-serif";
+      ctx.fillText(`Nudge: ${nudgeXInput.value || 0}mm, ${nudgeYInput.value || 0}mm`, centerX + 8, centerY + 18);
+    } else {
+      ctx.font = "12px \"Space Grotesk\", sans-serif";
+      ctx.fillStyle = "#1e1b16";
+      ctx.fillText("Backs centered", centerX + 8, centerY + 18);
+    }
+    ctx.restore();
+  }
+
   drawPositions.forEach((box, index) => {
-    const x = pageX + box.x * scale;
-    const y = pageY + (pageSize.h - box.y - box.height) * scale;
+    const offsetX = previewBack && nudgeEnabled ? nudgeXPts : 0;
+    const offsetY = previewBack && nudgeEnabled ? nudgeYPts : 0;
+    const x = pageX + (box.x + offsetX) * scale;
+    const y = pageY + (pageSize.h - (box.y + offsetY) - box.height) * scale;
     const w = box.width * scale;
     const h = box.height * scale;
 
@@ -1155,7 +1200,14 @@ async function generatePdf() {
         const backIndex = getAssignedBackIndex(globalIndex, backCount);
         const backEmbed = backIndex !== null ? backEmbeds[backIndex] : null;
         if (backEmbed) {
-          drawImageFit(backPage, backEmbed, box, fitMode);
+          const nudgeXPts = nudgeToggle.checked ? inchesToPoints(Number(nudgeXInput.value || 0) / 25.4) : 0;
+          const nudgeYPts = nudgeToggle.checked ? inchesToPoints(Number(nudgeYInput.value || 0) / 25.4) : 0;
+          const nudgedBox = {
+            ...box,
+            x: box.x + nudgeXPts,
+            y: box.y + nudgeYPts,
+          };
+          drawImageFit(backPage, backEmbed, nudgedBox, fitMode);
         }
         drawCrosshairs(backPage, box, crosshairLength, crosshairStroke, crosshairInsetPt);
       });
@@ -1194,6 +1246,9 @@ function wirePreviewUpdates() {
     crosshairLengthInput,
     crosshairStrokeInput,
     previewBackToggle,
+    nudgeToggle,
+    nudgeXInput,
+    nudgeYInput,
   ];
   inputs.forEach((input) => {
     input.addEventListener("change", () => {
@@ -1262,6 +1317,13 @@ function updateLayoutUi() {
     gutterLabel.textContent = "No gutter/bleed for Traditional card grid";
   }
 
+  const duplexLayouts = layoutSelect.value === "grid3x3" || layoutSelect.value === "grid2x3bleed";
+  nudgeToggle.disabled = !duplexLayouts || !hasBacks;
+  if (!duplexLayouts || !hasBacks) {
+    nudgeToggle.checked = false;
+    nudgeControls.style.display = "none";
+  }
+
   previewBackToggle.disabled = gutterfold || !hasBacks;
   if (gutterfold) {
     storedPreviewBackState = previewBackToggle.checked;
@@ -1296,6 +1358,24 @@ updateUnitDisplay();
 
 previewBackToggle.addEventListener("change", () => {
   storedPreviewBackState = previewBackToggle.checked;
+});
+
+function updateNudgeUi() {
+  const enabled = nudgeToggle.checked;
+  nudgeControls.style.display = enabled ? "grid" : "none";
+}
+
+updateNudgeUi();
+
+unitToggle.addEventListener("change", () => {
+  updateUnitDisplay();
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
+});
+
+nudgeToggle.addEventListener("change", () => {
+  updateNudgeUi();
+  renderPreview().catch((error) => console.error(error));
 });
 
 unitToggle.addEventListener("change", () => {
