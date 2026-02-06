@@ -9,11 +9,15 @@ const fitSelect = document.getElementById("fitSelect");
 const gutterInput = document.getElementById("gutterInput");
 const crosshairLengthInput = document.getElementById("crosshairLength");
 const crosshairStrokeInput = document.getElementById("crosshairStroke");
+const crosshairColorSelect = document.getElementById("crosshairColor");
 const generateBtn = document.getElementById("generateBtn");
 const statusEl = document.getElementById("status");
 const previewCanvas = document.getElementById("previewCanvas");
 const previewMeta = document.getElementById("previewMeta");
 const previewBackToggle = document.getElementById("previewBackToggle");
+const previewPrev = document.getElementById("previewPrev");
+const previewNext = document.getElementById("previewNext");
+const previewPageIndicator = document.getElementById("previewPageIndicator");
 const autoLayoutBtn = document.getElementById("autoLayoutBtn");
 const frontThumbs = document.getElementById("frontThumbs");
 const backThumbs = document.getElementById("backThumbs");
@@ -28,6 +32,7 @@ const nudgeControls = document.getElementById("nudgeControls");
 const nudgeXInput = document.getElementById("nudgeX");
 const nudgeYInput = document.getElementById("nudgeY");
 const themeToggle = document.getElementById("themeToggle");
+const resetNudgeBtn = document.getElementById("resetNudgeBtn");
 const unitToggle = document.getElementById("unitToggle");
 const unitLabel = document.getElementById("unitLabel");
 const layoutHelper = document.getElementById("layoutHelper");
@@ -43,6 +48,7 @@ const duplexNote = document.getElementById("duplexNote");
 let storedPreviewBackState = previewBackToggle.checked;
 let backAssignments = [];
 let lastUnitMetric = false;
+let currentPreviewPage = 0;
 
 const BLEED_GAP_IN = 0.25;
 const BLEED_EXTEND_IN = 0.25;
@@ -342,6 +348,19 @@ async function loadImageFromDataUrl(dataUrl) {
   });
 }
 
+async function ensurePngDataUrl(dataUrl) {
+  if (dataUrl.startsWith("data:image/png")) {
+    return dataUrl;
+  }
+  const img = await loadImageFromDataUrl(dataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
 async function getNormalizedDataUrl(file) {
   const img = await loadImageFromFile(file);
   if (img.width > img.height) {
@@ -370,22 +389,94 @@ async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches) {
       return dataUrl;
     }
 
+    const sampleIn = 1 / 25.4; // 1mm sampling depth
+    const samplePxX = Math.max(1, Math.round((sampleIn / cardSizeInches.w) * img.width));
+    const samplePxY = Math.max(1, Math.round((sampleIn / cardSizeInches.h) * img.height));
+
+    const sampleCanvas = document.createElement("canvas");
+    sampleCanvas.width = img.width;
+    sampleCanvas.height = img.height;
+    const sampleCtx = sampleCanvas.getContext("2d");
+    sampleCtx.drawImage(img, 0, 0);
+
+    const getAverageColor = (x, y, w, h) => {
+      const data = sampleCtx.getImageData(x, y, w, h).data;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+        count += 1;
+      }
+      if (!count) return { r: 255, g: 255, b: 255 };
+      return {
+        r: Math.round(r / count),
+        g: Math.round(g / count),
+        b: Math.round(b / count),
+      };
+    };
+
+    const quantize = (value) => Math.round(value / 16) * 16;
+    const isNearWhite = (r, g, b) => {
+      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b);
+      return luminance > 240;
+    };
+    const getDominantColor = (regions) => {
+      const counts = new Map();
+      regions.forEach(({ x, y, w, h }) => {
+        const data = sampleCtx.getImageData(x, y, w, h).data;
+        for (let i = 0; i < data.length; i += 4) {
+          const alpha = data[i + 3];
+          if (alpha < 200) continue;
+          const rRaw = data[i];
+          const gRaw = data[i + 1];
+          const bRaw = data[i + 2];
+          if (isNearWhite(rRaw, gRaw, bRaw)) continue;
+          const r = quantize(rRaw);
+          const g = quantize(gRaw);
+          const b = quantize(bRaw);
+          const key = `${r},${g},${b}`;
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+      });
+      let bestKey = null;
+      let bestCount = -1;
+      counts.forEach((count, key) => {
+        if (count > bestCount) {
+          bestCount = count;
+          bestKey = key;
+        }
+      });
+      if (!bestKey) return { r: 255, g: 255, b: 255 };
+      const [r, g, b] = bestKey.split(",").map(Number);
+      return { r, g, b };
+    };
+
+    const dominant = getDominantColor([
+      { x: 0, y: 0, w: img.width, h: samplePxY },
+      { x: 0, y: img.height - samplePxY, w: img.width, h: samplePxY },
+      { x: 0, y: 0, w: samplePxX, h: img.height },
+      { x: img.width - samplePxX, y: 0, w: samplePxX, h: img.height },
+    ]);
+
     const canvas = document.createElement("canvas");
     canvas.width = img.width + bleedPxX * 2;
     canvas.height = img.height + bleedPxY * 2;
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
 
-    ctx.drawImage(img, 0, 0, 1, img.height, 0, bleedPxY, bleedPxX, img.height);
-    ctx.drawImage(img, img.width - 1, 0, 1, img.height, bleedPxX + img.width, bleedPxY, bleedPxX, img.height);
-    ctx.drawImage(img, 0, 0, img.width, 1, bleedPxX, 0, img.width, bleedPxY);
-    ctx.drawImage(img, 0, img.height - 1, img.width, 1, bleedPxX, bleedPxY + img.height, img.width, bleedPxY);
+    const fillRect = (color, x, y, w, h) => {
+      ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+      ctx.fillRect(x, y, w, h);
+    };
 
-    ctx.drawImage(img, 0, 0, 1, 1, 0, 0, bleedPxX, bleedPxY);
-    ctx.drawImage(img, img.width - 1, 0, 1, 1, bleedPxX + img.width, 0, bleedPxX, bleedPxY);
-    ctx.drawImage(img, 0, img.height - 1, 1, 1, 0, bleedPxY + img.height, bleedPxX, bleedPxY);
-    ctx.drawImage(img, img.width - 1, img.height - 1, 1, 1, bleedPxX + img.width, bleedPxY + img.height, bleedPxX, bleedPxY);
+    // Fill all bleed areas with dominant border color for consistency
+    fillRect(dominant, 0, 0, canvas.width, canvas.height);
 
+    // Draw center image last
     ctx.drawImage(img, bleedPxX, bleedPxY);
 
     return canvas.toDataURL("image/png");
@@ -400,6 +491,7 @@ async function embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches) {
   if (bleedIn > 0) {
     dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches);
   }
+  dataUrl = await ensurePngDataUrl(dataUrl);
   const response = await fetch(dataUrl);
   const bytes = await response.arrayBuffer();
   return pdfDoc.embedPng(bytes);
@@ -419,6 +511,7 @@ function drawImageFit(page, image, box, fitMode) {
 
   page.drawImage(image, { x, y, width: drawW, height: drawH });
 }
+
 
 function drawImageFitRotated(page, image, box, fitMode, rotationDeg) {
   const imgW = image.width;
@@ -449,10 +542,24 @@ function drawImageFitRotated(page, image, box, fitMode, rotationDeg) {
   });
 }
 
+function getCrosshairColor() {
+  const value = crosshairColorSelect.value;
+  if (value === "light") return rgb(0.7, 0.7, 0.7);
+  if (value === "dark") return rgb(0.3, 0.3, 0.3);
+  return rgb(0, 0, 0);
+}
+
+function getPreviewCrosshairColor() {
+  const value = crosshairColorSelect.value;
+  if (value === "light") return "#b3b3b3";
+  if (value === "dark") return "#4d4d4d";
+  return "#000000";
+}
+
 function drawCrosshairs(page, box, lengthPx, strokePt, insetPt = 0) {
   const length = lengthPx; // treat px as pt for consistent PDF sizing
   const dashArray = [8, 6];
-  const dark = rgb(0.2, 0.2, 0.2);
+  const dark = getCrosshairColor();
   const half = length / 2;
 
   const corners = [
@@ -780,7 +887,7 @@ async function renderPreview() {
   normalizeAssignments(frontFiles.length, backCount);
   const hasBacks = backCount > 0;
   const duplexEnabled = hasBacks && !isGutterfold(layoutSelect.value);
-  const previewBack = duplexEnabled && (nudgeToggle.checked || previewBackToggle.checked);
+  const previewBack = !isGutterfold(layoutSelect.value) && previewBackToggle.checked && hasBacks;
   const nudgeEnabled = nudgeToggle.checked && previewBack;
   const nudgeXPts = inchesToPoints(Math.min(10, Math.max(-10, Number(nudgeXInput.value || 0))) / 25.4);
   const nudgeYPts = inchesToPoints(Math.min(5, Math.max(-5, Number(nudgeYInput.value || 0))) / 25.4);
@@ -859,29 +966,42 @@ async function renderPreview() {
     ctx.restore();
   }
 
+  const perPage = isGutterfold(layoutKey)
+    ? positions.filter((_, index) => index % 2 === 0).length
+    : positions.length;
+  const pageCount = Math.max(1, Math.ceil(frontFiles.length / perPage));
+  currentPreviewPage = Math.min(currentPreviewPage, pageCount - 1);
+
+  previewPrev.disabled = currentPreviewPage === 0;
+  previewNext.disabled = currentPreviewPage >= pageCount - 1;
+  previewPageIndicator.textContent = `Page ${currentPreviewPage + 1} of ${pageCount}`;
+
+  const pageStart = currentPreviewPage * perPage;
+  const pageEnd = pageStart + perPage;
+  const frontPageFiles = frontFiles.slice(pageStart, pageEnd);
+
   let cardImages = [];
-  if (previewBack) {
-    if (backFiles.length) {
-      const backImages = await loadPreviewImages(backFiles, { bleedIn, cardSizeInches });
-      const perPage = positions.length;
-      for (let i = 0; i < perPage; i += 1) {
-        const backIndex = getAssignedBackIndex(i, backCount);
-        cardImages.push(backIndex !== null ? backImages[backIndex] : backImages[0]);
-      }
-    } else {
-      cardImages = [];
-      previewMeta.textContent = "No back image available for preview. Upload a back image.";
+  if (previewBack && backFiles.length) {
+    const backImages = await loadPreviewImages(backFiles, { bleedIn, cardSizeInches });
+    for (let i = 0; i < frontPageFiles.length; i += 1) {
+      const globalIndex = pageStart + i;
+      const backIndex = getAssignedBackIndex(globalIndex, backCount);
+      cardImages.push(backIndex !== null ? backImages[backIndex] : backImages[0]);
     }
-  } else {
-    cardImages = frontFiles.length
-      ? await loadPreviewImages(frontFiles.slice(0, positions.length), { bleedIn, cardSizeInches })
+  } else if (!previewBack) {
+    cardImages = frontPageFiles.length
+      ? await loadPreviewImages(frontPageFiles, { bleedIn, cardSizeInches })
       : [];
+  } else if (previewBack && !backFiles.length) {
+    previewMeta.textContent = "No back image available for preview. Upload a back image.";
   }
 
   if (isGutterfold(layoutSelect.value)) {
     const leftPositions = positions.filter((_, index) => index % 2 === 0);
     const rightPositions = positions.filter((_, index) => index % 2 === 1);
-    const frontImagesGutter = frontFiles.length ? await loadPreviewImages(frontFiles.slice(0, leftPositions.length)) : [];
+    const frontImagesGutter = frontPageFiles.length
+      ? await loadPreviewImages(frontPageFiles, { bleedIn, cardSizeInches })
+      : [];
     const backImagesGutter = backFiles.length ? await loadPreviewImages(backFiles, { bleedIn, cardSizeInches }) : [];
 
     leftPositions.forEach((box, index) => {
@@ -924,8 +1044,9 @@ async function renderPreview() {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(x, y, w, h);
 
-      const backIndex = getAssignedBackIndex(index, backCount);
-      const img = backIndex !== null ? backImagesGutter[backIndex] : backImagesGutter[0];
+      const globalIndex = pageStart + index;
+      const backIndex = getAssignedBackIndex(globalIndex, backCount);
+      const img = backIndex !== null ? backImagesGutter[backIndex] : null;
       if (img) {
         ctx.save();
         ctx.translate(x, y + h);
@@ -1010,7 +1131,7 @@ async function renderPreview() {
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y, w, h);
 
-    const img = cardImages[index] || cardImages[0];
+    const img = cardImages[index];
     if (img) {
       const imgScale = fitMode === "contain"
         ? Math.min(w / img.width, h / img.height)
@@ -1047,6 +1168,7 @@ async function renderPreview() {
     ctx.font = "bold 14px \"Space Grotesk\", sans-serif";
     ctx.fillText("Layout exceeds safe print margins", pageX + 12, pageY + 22);
   }
+
 }
 
 function drawPreviewCrosshairs(ctx, x, y, w, h, lengthPx, strokePt, insetPx = 0) {
@@ -1071,7 +1193,7 @@ function drawPreviewCrosshairs(ctx, x, y, w, h, lengthPx, strokePt, insetPx = 0)
     };
 
     [horizontal, vertical].forEach((line) => {
-      ctx.strokeStyle = "#333333";
+      ctx.strokeStyle = getPreviewCrosshairColor();
       ctx.lineWidth = strokePt;
       ctx.beginPath();
       ctx.moveTo(line.start.x, line.start.y);
@@ -1237,6 +1359,7 @@ function wirePreviewUpdates() {
     gutterInput,
     crosshairLengthInput,
     crosshairStrokeInput,
+    crosshairColorSelect,
     previewBackToggle,
     nudgeToggle,
     nudgeXInput,
@@ -1319,13 +1442,13 @@ function updateLayoutUi() {
   updateNudgeUi();
 
   previewBackToggle.disabled = gutterfold || !hasBacks || (nudgeActive && hasBacks && !gutterfold);
-  if (nudgeActive && hasBacks && !gutterfold) {
-    previewBackToggle.checked = true;
-    storedPreviewBackState = true;
-  } else if (gutterfold) {
+  if (gutterfold) {
     storedPreviewBackState = previewBackToggle.checked;
     previewBackToggle.checked = false;
     previewMeta.textContent = "Gutterfold shows fronts + backs on one sheet.";
+  } else if (nudgeActive && hasBacks && !gutterfold) {
+    previewBackToggle.checked = true;
+    storedPreviewBackState = true;
   } else if (!hasBacks) {
     storedPreviewBackState = previewBackToggle.checked;
     previewBackToggle.checked = false;
@@ -1362,6 +1485,7 @@ if (savedTheme === "dark" || savedTheme === "light") {
 
 previewBackToggle.addEventListener("change", () => {
   storedPreviewBackState = previewBackToggle.checked;
+  renderPreview().catch((error) => console.error(error));
 });
 
 function updateNudgeUi() {
@@ -1390,6 +1514,22 @@ nudgeToggle.addEventListener("change", () => {
   updateNudgeUi();
   previewBackToggle.checked = nudgeToggle.checked;
   storedPreviewBackState = previewBackToggle.checked;
+  renderPreview().catch((error) => console.error(error));
+});
+
+previewPrev.addEventListener("click", () => {
+  currentPreviewPage = Math.max(0, currentPreviewPage - 1);
+  renderPreview().catch((error) => console.error(error));
+});
+
+previewNext.addEventListener("click", () => {
+  currentPreviewPage += 1;
+  renderPreview().catch((error) => console.error(error));
+});
+
+resetNudgeBtn.addEventListener("click", () => {
+  nudgeXInput.value = "0";
+  nudgeYInput.value = "0";
   renderPreview().catch((error) => console.error(error));
 });
 

@@ -169,6 +169,29 @@ h1 {
   margin-top: 16px;
 }
 
+.preview-nav {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-nav button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.preview-nav button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .info-badge {
   display: inline-flex;
   align-items: center;
@@ -319,6 +342,21 @@ h1 {
   margin-top: 12px;
 }
 
+#resetNudgeBtn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+#resetNudgeBtn:hover {
+  background: color-mix(in srgb, var(--panel) 80%, var(--bg-accent));
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -436,6 +474,13 @@ input[type="number"] {
   gap: 12px;
 }
 
+#previewCanvas {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid var(--border);
+}
 #previewCanvas {
   width: 100%;
   height: auto;

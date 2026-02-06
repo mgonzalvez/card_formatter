@@ -128,6 +128,14 @@
             Crosshair stroke (pt)
             <input id="crosshairStroke" type="number" min="1" max="3" step="0.5" value="1" />
           </label>
+          <label>
+            Crosshair color
+            <select id="crosshairColor">
+              <option value="black" selected>Black</option>
+              <option value="dark">Dark gray</option>
+              <option value="light">Light gray</option>
+            </select>
+          </label>
         </div>
         <div class="action-row">
           <button id="autoLayoutBtn" type="button">Auto-layout</button>
@@ -147,6 +155,11 @@
             <span class="slider"></span>
           </label>
           <span>Preview backs</span>
+          <div class="preview-nav">
+            <button id="previewPrev" type="button">Prev</button>
+            <span id="previewPageIndicator" class="helper">Page 1 of 1</span>
+            <button id="previewNext" type="button">Next</button>
+          </div>
         </div>
         <div class="preview-shell">
           <canvas id="previewCanvas" width="900" height="650"></canvas>
@@ -175,6 +188,10 @@
           <label>
             Back nudge Y (mm)
             <input id="nudgeY" type="number" min="-5" max="5" step="0.5" value="0" />
+          </label>
+          <label>
+            Reset
+            <button id="resetNudgeBtn" type="button">Reset to 0</button>
           </label>
         </div>
         <div class="helper">Positive X moves right. Positive Y moves up.</div>
