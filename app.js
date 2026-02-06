@@ -1287,7 +1287,7 @@ function updateLayoutUi() {
   const hasBacks = backFiles.length > 0;
   const nudgeActive = nudgeToggle.checked;
 
-  exportHeading.textContent = `5. Export ${formatLayoutName(layoutSelect.value)}`;
+  exportHeading.textContent = `6. Export ${formatLayoutName(layoutSelect.value)}`;
   updateSummary();
 
   if (layoutSelect.value === "gutterfold") {
