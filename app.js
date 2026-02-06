@@ -452,8 +452,7 @@ function drawImageFitRotated(page, image, box, fitMode, rotationDeg) {
 function drawCrosshairs(page, box, lengthPx, strokePt, insetPt = 0) {
   const length = lengthPx; // treat px as pt for consistent PDF sizing
   const dashArray = [8, 6];
-  const light = rgb(1, 1, 1);
-  const dark = rgb(0, 0, 0);
+  const dark = rgb(0.2, 0.2, 0.2);
   const half = length / 2;
 
   const corners = [
@@ -474,12 +473,6 @@ function drawCrosshairs(page, box, lengthPx, strokePt, insetPt = 0) {
     };
 
     [horizontal, vertical].forEach((line) => {
-      page.drawLine({
-        ...line,
-        thickness: strokePt + 2,
-        color: light,
-        dashArray,
-      });
       page.drawLine({
         ...line,
         thickness: strokePt,
@@ -787,10 +780,10 @@ async function renderPreview() {
   normalizeAssignments(frontFiles.length, backCount);
   const hasBacks = backCount > 0;
   const duplexEnabled = hasBacks && !isGutterfold(layoutSelect.value);
-  const previewBack = previewBackToggle.checked && duplexEnabled;
+  const previewBack = duplexEnabled && (nudgeToggle.checked || previewBackToggle.checked);
   const nudgeEnabled = nudgeToggle.checked && previewBack;
-  const nudgeXPts = inchesToPoints(Number(nudgeXInput.value || 0) / 25.4);
-  const nudgeYPts = inchesToPoints(Number(nudgeYInput.value || 0) / 25.4);
+  const nudgeXPts = inchesToPoints(Math.min(10, Math.max(-10, Number(nudgeXInput.value || 0))) / 25.4);
+  const nudgeYPts = inchesToPoints(Math.min(5, Math.max(-5, Number(nudgeYInput.value || 0))) / 25.4);
 
   if (!fits.fits || !safeFits.fits) {
     const suggestions = suggestAlternatives(pageSizeSelect.value, layoutSelect.value, cardSizeSelect.value);
@@ -1004,9 +997,10 @@ async function renderPreview() {
     ctx.restore();
   }
 
+  const offsetX = previewBack && nudgeEnabled ? nudgeXPts : 0;
+  const offsetY = previewBack && nudgeEnabled ? nudgeYPts : 0;
+
   drawPositions.forEach((box, index) => {
-    const offsetX = previewBack && nudgeEnabled ? nudgeXPts : 0;
-    const offsetY = previewBack && nudgeEnabled ? nudgeYPts : 0;
     const x = pageX + (box.x + offsetX) * scale;
     const y = pageY + (pageSize.h - (box.y + offsetY) - box.height) * scale;
     const w = box.width * scale;
@@ -1077,14 +1071,7 @@ function drawPreviewCrosshairs(ctx, x, y, w, h, lengthPx, strokePt, insetPx = 0)
     };
 
     [horizontal, vertical].forEach((line) => {
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = strokePt + 2;
-      ctx.beginPath();
-      ctx.moveTo(line.start.x, line.start.y);
-      ctx.lineTo(line.end.x, line.end.y);
-      ctx.stroke();
-
-      ctx.strokeStyle = "#000000";
+      ctx.strokeStyle = "#333333";
       ctx.lineWidth = strokePt;
       ctx.beginPath();
       ctx.moveTo(line.start.x, line.start.y);
@@ -1200,17 +1187,21 @@ async function generatePdf() {
         const globalIndex = pageIndex * perPage + index;
         const backIndex = getAssignedBackIndex(globalIndex, backCount);
         const backEmbed = backIndex !== null ? backEmbeds[backIndex] : null;
+          const nudgeXPts = nudgeToggle.checked
+            ? inchesToPoints(Math.min(10, Math.max(-10, Number(nudgeXInput.value || 0))) / 25.4)
+            : 0;
+          const nudgeYPts = nudgeToggle.checked
+            ? inchesToPoints(Math.min(5, Math.max(-5, Number(nudgeYInput.value || 0))) / 25.4)
+            : 0;
+        const nudgedBox = {
+          ...box,
+          x: box.x + nudgeXPts,
+          y: box.y + nudgeYPts,
+        };
         if (backEmbed) {
-          const nudgeXPts = nudgeToggle.checked ? inchesToPoints(Number(nudgeXInput.value || 0) / 25.4) : 0;
-          const nudgeYPts = nudgeToggle.checked ? inchesToPoints(Number(nudgeYInput.value || 0) / 25.4) : 0;
-          const nudgedBox = {
-            ...box,
-            x: box.x + nudgeXPts,
-            y: box.y + nudgeYPts,
-          };
           drawImageFit(backPage, backEmbed, nudgedBox, fitMode);
         }
-        drawCrosshairs(backPage, box, crosshairLength, crosshairStroke, crosshairInsetPt);
+        drawCrosshairs(backPage, nudgedBox, crosshairLength, crosshairStroke, crosshairInsetPt);
       });
     }
   });
@@ -1294,6 +1285,7 @@ function updateLayoutUi() {
   const gutterfold = isGutterfold(layoutSelect.value);
   const backFiles = getBackFiles();
   const hasBacks = backFiles.length > 0;
+  const nudgeActive = nudgeToggle.checked;
 
   exportHeading.textContent = `5. Export ${formatLayoutName(layoutSelect.value)}`;
   updateSummary();
@@ -1324,9 +1316,13 @@ function updateLayoutUi() {
     nudgeToggle.checked = false;
     nudgeControls.style.display = "none";
   }
+  updateNudgeUi();
 
-  previewBackToggle.disabled = gutterfold || !hasBacks;
-  if (gutterfold) {
+  previewBackToggle.disabled = gutterfold || !hasBacks || (nudgeActive && hasBacks && !gutterfold);
+  if (nudgeActive && hasBacks && !gutterfold) {
+    previewBackToggle.checked = true;
+    storedPreviewBackState = true;
+  } else if (gutterfold) {
     storedPreviewBackState = previewBackToggle.checked;
     previewBackToggle.checked = false;
     previewMeta.textContent = "Gutterfold shows fronts + backs on one sheet.";
@@ -1371,6 +1367,15 @@ previewBackToggle.addEventListener("change", () => {
 function updateNudgeUi() {
   const enabled = nudgeToggle.checked;
   nudgeControls.style.display = enabled ? "grid" : "none";
+  if (enabled) {
+    previewBackToggle.checked = true;
+    storedPreviewBackState = true;
+    previewBackToggle.disabled = true;
+    previewBackToggle.closest(".switch")?.classList.add("is-disabled");
+  } else {
+    previewBackToggle.disabled = false;
+    previewBackToggle.closest(".switch")?.classList.remove("is-disabled");
+  }
 }
 
 updateNudgeUi();
@@ -1383,6 +1388,8 @@ unitToggle.addEventListener("change", () => {
 
 nudgeToggle.addEventListener("change", () => {
   updateNudgeUi();
+  previewBackToggle.checked = nudgeToggle.checked;
+  storedPreviewBackState = previewBackToggle.checked;
   renderPreview().catch((error) => console.error(error));
 });
 

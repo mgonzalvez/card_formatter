@@ -38,6 +38,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 ## Back Nudge (Optional)
 - Enable when using duplex layouts if you observe front/back drift.
 - Set X/Y offsets in **mm (0.5 mm steps)** after measuring a test print.
+- X is limited to **±10 mm**, Y is limited to **±5 mm**.
 - Preview shows the center crosshair and applied nudge.
 - Applied to all backs on export (printer-specific).
 
@@ -54,7 +55,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 
 ## Changelog
 - Added theme toggle with saved preference.
-- Added optional Back Nudge controls with preview indicator (mm offsets).
+- Added optional Back Nudge controls with preview indicator (mm offsets, X ±10 mm / Y ±5 mm).
 - Added adaptive layout summary panel and format-aware export header.
 - Added metric/imperial toggle with dynamic labels and conversions.
 - Added adjustable gutter/bleed control by layout (0.10–0.75").
