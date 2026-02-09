@@ -43,6 +43,31 @@ body {
   gap: 32px;
 }
 
+.top-links {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.site-link,
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+.site-link:hover,
+.footer-link:hover {
+  background: color-mix(in srgb, var(--panel) 80%, var(--bg-accent));
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
@@ -521,6 +546,9 @@ button:hover {
   text-align: center;
   color: var(--ink-muted);
   font-size: 13px;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
 }
 
 @media (max-width: 900px) {
