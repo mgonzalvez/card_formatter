@@ -46,6 +46,7 @@ body {
 .top-links {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .site-link,
@@ -549,6 +550,13 @@ button:hover {
   display: grid;
   gap: 10px;
   justify-items: center;
+}
+
+.footer-links {
+  display: inline-flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 @media (max-width: 900px) {
