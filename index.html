@@ -165,10 +165,17 @@
             <button id="previewPrev" type="button">Prev</button>
             <span id="previewPageIndicator" class="helper">Page 1 of 1</span>
             <button id="previewNext" type="button">Next</button>
+            <div class="zoom-controls" aria-label="Preview zoom">
+              <button id="zoom1x" type="button">1x</button>
+              <button id="zoom2x" type="button">2x</button>
+              <button id="zoom4x" type="button">4x</button>
+            </div>
           </div>
         </div>
         <div class="preview-shell">
-          <canvas id="previewCanvas" width="900" height="650"></canvas>
+          <div class="preview-viewport" id="previewViewport">
+            <canvas id="previewCanvas" width="900" height="650"></canvas>
+          </div>
           <div class="preview-meta" id="previewMeta">Preview updates automatically.</div>
         </div>
       </section>

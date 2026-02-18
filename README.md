@@ -15,8 +15,10 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
   - Buttonshy Games Style (with bleed)
 - Duplex printing with mirrored backs (flip edge depends on layout).
 - Auto-rotate landscape inputs to portrait (right edge points upward).
-- Adjustable corner crosshair guides (length + stroke).
+- Adjustable corner crosshair guides (length, stroke, and color).
 - Live preview with safe-margin overlay, crosshairs, and cut-box overlay for Buttonshy.
+- Preview page navigation (`Prev`/`Next`) with page count indicator.
+- Preview zoom controls (`1x`, `2x`, `4x`) with drag-to-pan while zoomed.
 - Auto-layout helper and image thumbnails.
 - Multiple back images with per-card assignment and batch assignment tools.
 - Metric/imperial unit toggle with dynamic labels.
@@ -24,6 +26,8 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Safe-print guardrails: hard block export if layout exceeds safe margins.
 - Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator.
 - Light/Dark theme toggle with saved preference.
+- Top/footer quick links for PnPFinder, Extractor, and Launchpad.
+- Cloudflare Web Analytics snippet included.
 
 ## Layout Notes
 - **Traditional card grid**: Portrait page. Duplex flip on **long edge**.
@@ -45,8 +49,10 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 ## Usage
 1. Open `index.html` in a browser.
 2. Upload front images and optional back images.
-3. Choose layout, page size, card size, and image fit.
-4. Preview and export a PDF.
+3. Choose layout, page size, card size, image fit, and crosshair settings.
+4. (Optional) Assign backs per front and apply back nudge for duplex tuning.
+5. Preview pages (fronts or backs), zoom/pan as needed.
+6. Export PDF.
 
 ## Files
 - `index.html` — UI markup
@@ -54,6 +60,9 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - `app.js` — PDF generation + preview logic
 
 ## Changelog
+- Added preview zoom controls (`1x`, `2x`, `4x`) and drag-to-pan interaction.
+- Added top and footer nav links for PnPFinder, Extractor, and Launchpad.
+- Added Cloudflare Web Analytics snippet.
 - Added theme toggle with saved preference.
 - Added optional Back Nudge controls with preview indicator (mm offsets, X ±10 mm / Y ±5 mm).
 - Added adaptive layout summary panel and format-aware export header.

@@ -203,6 +203,11 @@ h1 {
   flex-wrap: wrap;
 }
 
+.zoom-controls {
+  display: inline-flex;
+  gap: 6px;
+}
+
 .preview-nav button {
   border: 1px solid var(--border);
   background: var(--panel);
@@ -216,6 +221,12 @@ h1 {
 .preview-nav button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.preview-nav button.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .info-badge {
@@ -500,19 +511,23 @@ input[type="number"] {
   gap: 12px;
 }
 
-#previewCanvas {
-  width: 100%;
-  height: auto;
+.preview-viewport {
+  overflow: auto;
   border-radius: 12px;
-  background: white;
-  border: 1px solid var(--border);
 }
+
+.preview-viewport.is-dragging {
+  cursor: grabbing;
+}
+
 #previewCanvas {
   width: 100%;
+  min-width: 100%;
+  max-width: none;
   height: auto;
-  border-radius: 12px;
   background: white;
   border: 1px solid var(--border);
+  display: block;
 }
 
 .preview-meta {

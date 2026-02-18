@@ -18,6 +18,10 @@ const previewBackToggle = document.getElementById("previewBackToggle");
 const previewPrev = document.getElementById("previewPrev");
 const previewNext = document.getElementById("previewNext");
 const previewPageIndicator = document.getElementById("previewPageIndicator");
+const previewViewport = document.getElementById("previewViewport");
+const zoom1xBtn = document.getElementById("zoom1x");
+const zoom2xBtn = document.getElementById("zoom2x");
+const zoom4xBtn = document.getElementById("zoom4x");
 const autoLayoutBtn = document.getElementById("autoLayoutBtn");
 const frontThumbs = document.getElementById("frontThumbs");
 const backThumbs = document.getElementById("backThumbs");
@@ -49,6 +53,8 @@ let storedPreviewBackState = previewBackToggle.checked;
 let backAssignments = [];
 let lastUnitMetric = false;
 let currentPreviewPage = 0;
+let previewZoom = 1;
+let previewPan = null;
 
 const BLEED_GAP_IN = 0.25;
 const BLEED_EXTEND_IN = 0.25;
@@ -66,6 +72,65 @@ const cardSizes = {
   bridge: { w: 2.25, h: 3.5 },
   mini: { w: 1.75, h: 2.5 },
 };
+
+function updateZoomButtons() {
+  zoom1xBtn?.classList.toggle("is-active", previewZoom === 1);
+  zoom2xBtn?.classList.toggle("is-active", previewZoom === 2);
+  zoom4xBtn?.classList.toggle("is-active", previewZoom === 4);
+}
+
+function setPreviewZoom(nextZoom) {
+  if (!previewViewport || !previewCanvas) return;
+  const zoom = [1, 2, 4].includes(nextZoom) ? nextZoom : 1;
+  const oldZoom = previewZoom || 1;
+  const centerX = previewViewport.scrollLeft + previewViewport.clientWidth / 2;
+  const centerY = previewViewport.scrollTop + previewViewport.clientHeight / 2;
+
+  previewZoom = zoom;
+  previewCanvas.style.width = `${previewZoom * 100}%`;
+  previewViewport.style.cursor = previewZoom > 1 ? "grab" : "default";
+  updateZoomButtons();
+
+  const ratio = previewZoom / oldZoom;
+  previewViewport.scrollLeft = Math.max(0, centerX * ratio - previewViewport.clientWidth / 2);
+  previewViewport.scrollTop = Math.max(0, centerY * ratio - previewViewport.clientHeight / 2);
+}
+
+function setupPreviewPan() {
+  if (!previewViewport) return;
+
+  previewViewport.addEventListener("pointerdown", (event) => {
+    if (previewZoom <= 1 || event.button !== 0) return;
+    previewPan = {
+      x: event.clientX,
+      y: event.clientY,
+      scrollLeft: previewViewport.scrollLeft,
+      scrollTop: previewViewport.scrollTop,
+    };
+    previewViewport.classList.add("is-dragging");
+    previewViewport.setPointerCapture(event.pointerId);
+  });
+
+  previewViewport.addEventListener("pointermove", (event) => {
+    if (!previewPan) return;
+    const dx = event.clientX - previewPan.x;
+    const dy = event.clientY - previewPan.y;
+    previewViewport.scrollLeft = previewPan.scrollLeft - dx;
+    previewViewport.scrollTop = previewPan.scrollTop - dy;
+  });
+
+  const stopPan = (event) => {
+    if (!previewPan) return;
+    previewPan = null;
+    previewViewport.classList.remove("is-dragging");
+    if (event?.pointerId !== undefined && previewViewport.hasPointerCapture(event.pointerId)) {
+      previewViewport.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  previewViewport.addEventListener("pointerup", stopPan);
+  previewViewport.addEventListener("pointercancel", stopPan);
+}
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -1388,6 +1453,8 @@ backFilesInput.addEventListener("change", () => {
 });
 
 wirePreviewUpdates();
+setupPreviewPan();
+setPreviewZoom(1);
 renderPreview().catch((error) => console.error(error));
 renderThumbnails().catch((error) => console.error(error));
 
@@ -1526,6 +1593,10 @@ previewNext.addEventListener("click", () => {
   currentPreviewPage += 1;
   renderPreview().catch((error) => console.error(error));
 });
+
+zoom1xBtn.addEventListener("click", () => setPreviewZoom(1));
+zoom2xBtn.addEventListener("click", () => setPreviewZoom(2));
+zoom4xBtn.addEventListener("click", () => setPreviewZoom(4));
 
 resetNudgeBtn.addEventListener("click", () => {
   nudgeXInput.value = "0";
