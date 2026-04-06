@@ -16,6 +16,14 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Duplex printing with mirrored backs (flip edge depends on layout).
 - Auto-rotate landscape inputs to portrait (right edge points upward).
 - Adjustable corner crosshair guides (length, stroke, and color).
+- Crosshair ranges:
+  - Length `10-30 px` (default `20`)
+  - Stroke `1-3 pt` (default `1`)
+  - Colors: black, dark gray, light gray
+- Duplex-only guide placement control:
+  - `Back only` (default)
+  - `Front only`
+  - `Both sides`
 - Live preview with safe-margin overlay, crosshairs, and cut-box overlay for Buttonshy.
 - Preview page navigation (`Prev`/`Next`) with page count indicator.
 - Auto-layout helper and image thumbnails.
@@ -23,26 +31,34 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Metric/imperial unit toggle with dynamic labels.
 - Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins.
-- Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator.
+- Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator and reset-to-zero control.
 - Light/Dark theme toggle with saved preference.
-- Top/footer quick links for PnPFinder, Extractor, and Launchpad.
+- Top nav links for PnPFinder, PnPTools, Prototyper, Extractor, and Launchpad.
+- Footer links for PnPFinder, PnPTools, Prototyper, and Extractor.
+- Footer includes copyright notice and Ko-fi support link.
 - Cloudflare Web Analytics snippet included.
 
 ## Layout Notes
 - **Traditional card grid**: Portrait page. Duplex flip on **long edge**.
 - **Buttonshy Games Style (with bleed)**: Landscape page. Images are extended by **0.10–0.75" per side** using edge-pixel bleed. Cut guides remain at the original card size. Duplex flip on **short edge**.
-- **Gutterfold (2 columns)**: Portrait page, landscape cards. Fronts in left column, backs in right column, bottoms toward the center gutter. Includes a dashed fold line. No duplex. Center gutter is adjustable **0.10–0.75"**.
+- **Gutterfold (2 columns)**: Portrait page, landscape cards. Fronts in left column, backs in right column, bottoms toward the center gutter. Includes a dashed fold line. No duplex. Center gutter is adjustable **0.10–0.75"**. Corner guides remain on for the sheet.
 
 ## Back Assignment Workflow
 - Upload **one back** to apply it to all fronts automatically.
 - Upload **multiple backs** to enable per-card assignment in the thumbnails section.
 - Use the **Select all** checkbox and batch selector to assign a back to multiple cards at once.
 
+## Corner Guide Placement
+- Duplex layouts can print corner guides on the **back only** (default), **front only**, or **both sides**.
+- This control appears only when backs are uploaded for a duplex-capable layout.
+- Front-only jobs and gutterfold sheets always retain corner guides.
+
 ## Back Nudge (Optional)
 - Enable when using duplex layouts if you observe front/back drift.
 - Set X/Y offsets in **mm (0.5 mm steps)** after measuring a test print.
 - X is limited to **±10 mm**, Y is limited to **±5 mm**.
 - Preview shows the center crosshair and applied nudge.
+- Positive X moves right. Positive Y moves up.
 - Applied to all backs on export (printer-specific).
 
 ## Usage
@@ -59,18 +75,12 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - `app.js` — PDF generation + preview logic
 
 ## Changelog
-- Added top and footer nav links for PnPFinder, Extractor, and Launchpad.
-- Added Cloudflare Web Analytics snippet.
-- Added theme toggle with saved preference.
-- Added optional Back Nudge controls with preview indicator (mm offsets, X ±10 mm / Y ±5 mm).
-- Added adaptive layout summary panel and format-aware export header.
-- Added metric/imperial toggle with dynamic labels and conversions.
-- Added adjustable gutter/bleed control by layout (0.10–0.75").
-- Added safe-margin overlay + hard export guardrails.
-- Added per-card back assignment UI with batch tools and Select All.
-- Added auto-rotation of landscape images to portrait.
-- Added preview crosshairs + cut-box overlay for Buttonshy.
-- Added responsive layout for desktop, tablet, and phone.
+- Added duplex-only corner guide placement control with `Back only` as the default.
+- Added ecosystem nav links, footer support/contact links, and Cloudflare analytics.
+- Added theme toggle with saved preference and responsive desktop/tablet/phone layout.
+- Added back nudge controls with preview indicator and reset-to-zero workflow.
+- Added per-card back assignment, batch assignment tools, and automatic single-back behavior.
+- Added safe-margin overlay, hard export guardrails, auto-rotation, and preview crosshairs/Buttonshy cut-box support.
 
 ## Development
 No build step required. This is a static site suitable for GitHub Pages.

@@ -10,6 +10,9 @@ const gutterInput = document.getElementById("gutterInput");
 const crosshairLengthInput = document.getElementById("crosshairLength");
 const crosshairStrokeInput = document.getElementById("crosshairStroke");
 const crosshairColorSelect = document.getElementById("crosshairColor");
+const cornerGuideModeWrap = document.getElementById("cornerGuideModeWrap");
+const cornerGuideModeSelect = document.getElementById("cornerGuideMode");
+const cornerGuideModeHelper = document.getElementById("cornerGuideModeHelper");
 const generateBtn = document.getElementById("generateBtn");
 const statusEl = document.getElementById("status");
 const previewCanvas = document.getElementById("previewCanvas");
@@ -557,6 +560,15 @@ function getPreviewCrosshairColor() {
   return "#000000";
 }
 
+function shouldDrawCornerGuides(side, options = {}) {
+  const { duplex = false, gutterfold = false } = options;
+  if (gutterfold || !duplex) return true;
+
+  const mode = cornerGuideModeSelect.value || "back";
+  if (mode === "both") return true;
+  return mode === side;
+}
+
 function drawCrosshairs(page, box, lengthPx, strokePt, insetPt = 0) {
   const length = lengthPx; // treat px as pt for consistent PDF sizing
   const dashArray = [8, 6];
@@ -1033,7 +1045,9 @@ async function renderPreview() {
         ctx.fillRect(x, y, w, h);
       }
 
-      drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, 0);
+      if (shouldDrawCornerGuides("front", { gutterfold: true })) {
+        drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, 0);
+      }
     });
 
     rightPositions.forEach((box, index) => {
@@ -1066,7 +1080,9 @@ async function renderPreview() {
         ctx.fillRect(x, y, w, h);
       }
 
-      drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, 0);
+      if (shouldDrawCornerGuides("back", { gutterfold: true })) {
+        drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, 0);
+      }
     });
 
     if (!fits.fits || !safeFits.fits) {
@@ -1157,7 +1173,10 @@ async function renderPreview() {
       ctx.restore();
     }
 
-    drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, crosshairInsetPt * scale);
+    const previewSide = previewBack ? "back" : "front";
+    if (shouldDrawCornerGuides(previewSide, { duplex: duplexEnabled })) {
+      drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, crosshairInsetPt * scale);
+    }
   });
 
   if (!fits.fits || !safeFits.fits) {
@@ -1263,7 +1282,9 @@ async function generatePdf() {
         const box = leftPositions[index];
         if (!box) return;
         drawImageFitRotated(page, image, box, fitMode, 90);
-        drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
+        if (shouldDrawCornerGuides("front", { gutterfold: true })) {
+          drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
+        }
       });
 
       rightPositions.forEach((box, index) => {
@@ -1274,7 +1295,9 @@ async function generatePdf() {
         if (backEmbed) {
           drawImageFitRotated(page, backEmbed, box, fitMode, 270);
         }
-        drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
+        if (shouldDrawCornerGuides("back", { gutterfold: true })) {
+          drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
+        }
       });
     });
 
@@ -1299,7 +1322,9 @@ async function generatePdf() {
       const box = positions[index];
       if (!box) return;
       drawImageFit(page, image, box, fitMode);
-      drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
+      if (shouldDrawCornerGuides("front", { duplex })) {
+        drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
+      }
     });
 
     if (duplex) {
@@ -1324,7 +1349,9 @@ async function generatePdf() {
         if (backEmbed) {
           drawImageFit(backPage, backEmbed, nudgedBox, fitMode);
         }
-        drawCrosshairs(backPage, nudgedBox, crosshairLength, crosshairStroke, crosshairInsetPt);
+        if (shouldDrawCornerGuides("back", { duplex })) {
+          drawCrosshairs(backPage, nudgedBox, crosshairLength, crosshairStroke, crosshairInsetPt);
+        }
       });
     }
   });
@@ -1361,6 +1388,7 @@ function wirePreviewUpdates() {
     crosshairLengthInput,
     crosshairStrokeInput,
     crosshairColorSelect,
+    cornerGuideModeSelect,
     previewBackToggle,
     nudgeToggle,
     nudgeXInput,
@@ -1410,6 +1438,7 @@ function updateLayoutUi() {
   const backFiles = getBackFiles();
   const hasBacks = backFiles.length > 0;
   const nudgeActive = nudgeToggle.checked;
+  const duplexOutput = hasBacks && !gutterfold;
 
   exportHeading.textContent = `6. Export ${formatLayoutName(layoutSelect.value)}`;
   updateSummary();
@@ -1441,6 +1470,12 @@ function updateLayoutUi() {
     nudgeControls.style.display = "none";
   }
   updateNudgeUi();
+
+  cornerGuideModeWrap.style.display = duplexOutput ? "flex" : "none";
+  cornerGuideModeHelper.style.display = duplexOutput ? "block" : "none";
+  if (!duplexOutput) {
+    cornerGuideModeSelect.value = "back";
+  }
 
   previewBackToggle.disabled = gutterfold || !hasBacks || (nudgeActive && hasBacks && !gutterfold);
   if (gutterfold) {

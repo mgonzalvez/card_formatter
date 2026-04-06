@@ -144,7 +144,16 @@
               <option value="light">Light gray</option>
             </select>
           </label>
+          <label id="cornerGuideModeWrap">
+            Corner guides on
+            <select id="cornerGuideMode">
+              <option value="back" selected>Back only</option>
+              <option value="front">Front only</option>
+              <option value="both">Both sides</option>
+            </select>
+          </label>
         </div>
+        <p class="helper" id="cornerGuideModeHelper">Choose whether corner cutting guides print on the front pages, back pages, or both. Applies to duplex layouts only.</p>
         <div class="action-row">
           <button id="autoLayoutBtn" type="button">Auto-layout</button>
           <div class="helper">Chooses the best fitting layout and page size.</div>
