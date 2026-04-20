@@ -67,6 +67,7 @@ const cardSizes = {
   poker: { w: 2.5, h: 3.5 },
   square: { w: 2.5, h: 2.5 },
   bridge: { w: 2.25, h: 3.5 },
+  euro: { w: 2.32, h: 3.62 },
   mini: { w: 1.75, h: 2.5 },
 };
 
@@ -139,6 +140,7 @@ function updateUnitDisplay() {
     { key: "poker", label: "Poker" },
     { key: "square", label: "Square" },
     { key: "bridge", label: "Bridge" },
+    { key: "euro", label: "Euro" },
     { key: "mini", label: "Mini" },
   ];
   const current = cardSizeSelect.value;
@@ -907,12 +909,28 @@ async function renderPreview() {
 
   if (!fits.fits || !safeFits.fits) {
     const suggestions = suggestAlternatives(pageSizeSelect.value, layoutSelect.value, cardSizeSelect.value);
-    const suggestionText = suggestions.length
-      ? suggestions.map((s) => `${formatLayoutName(s.layout)} on ${formatPageName(s.page)}`).join(" · ")
-      : "Try a smaller card size or different layout.";
     const reason = !fits.fits ? "Layout exceeds page size." : "Layout exceeds safe print margins.";
-    previewMeta.textContent = `${reason} Suggestions: ${suggestionText}`;
-    setStatus("Layout is unsafe to print. Adjust layout or page size.");
+    if (suggestions.length) {
+      const links = suggestions.map((s) => {
+        const text = `${formatLayoutName(s.layout)} on ${formatPageName(s.page)}`;
+        return `<span class="suggestion-link" data-layout="${s.layout}" data-page="${s.page}">${text}</span>`;
+      }).join(" · ");
+      previewMeta.innerHTML = `${reason} <span class="suggestion-hint">Try: </span>${links}`;
+      setStatus("Layout is unsafe to print. Click a suggestion below to switch.");
+      previewMeta.querySelectorAll(".suggestion-link").forEach((el) => {
+        el.addEventListener("click", () => {
+          layoutSelect.value = el.dataset.layout;
+          pageSizeSelect.value = el.dataset.page;
+          updateLayoutUi();
+          renderPreview();
+        });
+      });
+    } else {
+      const cardSize = getCardSizeForLayout(cardSizeSelect.value);
+      const unitLabel = lastUnitMetric === "mm" ? "mm" : '"';
+      previewMeta.textContent = `${reason} Try: smaller card size, different layout, or ${unitLabel} page size.`;
+      setStatus("Layout is unsafe to print. No suggestions available.");
+    }
   } else {
     previewMeta.textContent = "Preview updates automatically.";
     const frontCount = frontFilesInput.files?.length || 0;
@@ -1493,7 +1511,7 @@ function updateLayoutUi() {
   }
 
   if (gutterfold) {
-    duplexNote.textContent = "Gutterfold prints fronts and backs on one sheet (no flip).";
+    duplexNote.textContent = "Fronts and backs print on one sheet (no flip needed).";
   } else if (!hasBacks) {
     duplexNote.textContent = "Upload a back image to enable duplex output.";
   } else if (layoutSelect.value === "grid2x3bleed") {
@@ -1506,7 +1524,12 @@ function updateLayoutUi() {
 layoutSelect.addEventListener("change", () => {
   previewBackToggle.checked = false;
   updateLayoutUi();
-  renderPreview().catch((error) => console.error(error));
+  renderPreview().catch((error) => console.error(error)).then(() => {
+    const gutterfold = layoutSelect.value === "gutterfold";
+    if (gutterfold) {
+      previewMeta.textContent = "Fronts and backs print on one sheet (no flip needed).";
+    }
+  });
 });
 
 updateLayoutUi();
