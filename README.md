@@ -13,6 +13,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
   - Traditional card grid
   - Gutterfold (2 columns)
   - Buttonshy Games Style (with bleed)
+- Card sizes: Poker, Square, Bridge, Euro, Mini
 - Duplex printing with mirrored backs (flip edge depends on layout).
 - Auto-rotate landscape inputs to portrait (right edge points upward).
 - Adjustable corner crosshair guides (length, stroke, and color).
@@ -30,7 +31,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Multiple back images with per-card assignment and batch assignment tools.
 - Metric/imperial unit toggle with dynamic labels.
 - Adaptive layout summary panel and format-aware export header.
-- Safe-print guardrails: hard block export if layout exceeds safe margins.
+- Safe-print guardrails: hard block export if layout exceeds safe margins, with clickable suggestions for one-click switching.
 - Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator and reset-to-zero control.
 - Light/Dark theme toggle with saved preference.
 - Top nav links for PnPFinder, PnPTools, Prototyper, Extractor, and Launchpad.
@@ -75,6 +76,8 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - `app.js` — PDF generation + preview logic
 
 ## Changelog
+- Added clickable safe-margin suggestions with one-click layout/page switching for unsafe combinations.
+- Added Euro card size (2.32" × 3.62" / 59 × 92 mm).
 - Added duplex-only corner guide placement control with `Back only` as the default.
 - Added ecosystem nav links, footer support/contact links, and Cloudflare analytics.
 - Added theme toggle with saved preference and responsive desktop/tablet/phone layout.
