@@ -35,7 +35,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator and reset-to-zero control.
 - Light/Dark theme toggle with saved preference.
 - Top nav links for PnPFinder, PnPTools, Prototyper, Extractor, and Launchpad.
-- Footer links for PnPFinder, PnPTools, Prototyper, and Extractor.
+- Footer links for PnPFinder, PnPTools, Prototyper, Extractor, and Launchpad.
 - Footer includes copyright notice and Ko-fi support link.
 - Cloudflare Web Analytics snippet included.
 
@@ -76,6 +76,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - `app.js` — PDF generation + preview logic
 
 ## Changelog
+- Added Launchpad to footer for nav parity with the top navigation.
 - Added clickable safe-margin suggestions with one-click layout/page switching for unsafe combinations.
 - Added Euro card size (2.32" × 3.62" / 59 × 92 mm).
 - Added duplex-only corner guide placement control with `Back only` as the default.
