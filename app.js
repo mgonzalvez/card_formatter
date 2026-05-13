@@ -213,6 +213,60 @@ function getLayoutConfig(layout) {
   return { cols: 3, rows: 2, gap: 0, centerGutter: 0 };
 }
 
+// Compute dynamic cols/rows that fit within safe margins.
+// Never shrinks below the current hardcoded grid — preserves existing layouts
+// even if they slightly exceed safe margins. Grows larger for smaller cards.
+function computeLayoutGrid(layoutKey, pageSize, cardSize) {
+  const safeMarginPt = inchesToPoints(SAFE_MARGIN_IN);
+  const safeW = pageSize.w - safeMarginPt * 2;
+  const safeH = pageSize.h - safeMarginPt * 2;
+  const current = getLayoutConfig(layoutKey);
+
+  if (layoutKey === "grid3x3") {
+    // Portrait page, portrait cards
+    const safeCols = Math.max(1, Math.floor(safeW / cardSize.w));
+    const safeRows = Math.max(1, Math.floor(safeH / cardSize.h));
+    const pageCols = Math.max(1, Math.floor(pageSize.w / cardSize.w));
+    const pageRows = Math.max(1, Math.floor(pageSize.h / cardSize.h));
+    const fitsOnPage = pageCols >= current.cols && pageRows >= current.rows;
+    return {
+      cols: fitsOnPage ? Math.max(current.cols, safeCols) : safeCols,
+      rows: fitsOnPage ? Math.max(current.rows, safeRows) : safeRows,
+      gap: 0,
+      centerGutter: 0,
+    };
+  }
+
+  if (layoutKey === "gutterfold") {
+    // Portrait page, landscape cards, 2 fixed columns with center gutter
+    const gutterPt = inchesToPoints(getGutterValueInInches());
+    const colW = (pageSize.w - gutterPt) / 2;
+    const safeColW = (safeW - gutterPt) / 2;
+    const safeRows = Math.max(1, Math.floor(safeH / cardSize.h));
+    const pageRows = Math.max(1, Math.floor(pageSize.h / cardSize.h));
+    const fitsOnPage = colW >= cardSize.w && pageRows >= current.rows;
+    return {
+      cols: 2,
+      rows: fitsOnPage ? Math.max(current.rows, safeRows) : safeRows,
+      gap: 0,
+      centerGutter: getGutterValueInInches(),
+    };
+  }
+
+  // grid2x3bleed — landscape page, portrait cards (cardSize already includes bleed)
+  const safeCols = Math.max(1, Math.floor(safeW / cardSize.w));
+  const safeRows = Math.max(1, Math.floor(safeH / cardSize.h));
+  const pageCols = Math.max(1, Math.floor(pageSize.w / cardSize.w));
+  const pageRows = Math.max(1, Math.floor(pageSize.h / cardSize.h));
+  const fitsOnPage = pageCols >= current.cols && pageRows >= current.rows;
+  return {
+    cols: fitsOnPage ? Math.max(current.cols, safeCols) : safeCols,
+    rows: fitsOnPage ? Math.max(current.rows, safeRows) : safeRows,
+    gap: 0,
+    centerGutter: 0,
+  };
+}
+
 function getPageSizePoints(pageSizeKey) {
   const size = pageSizes[pageSizeKey] || pageSizes.letter;
   return { w: inchesToPoints(size.w), h: inchesToPoints(size.h) };
@@ -862,9 +916,9 @@ async function renderThumbnails() {
 async function renderPreview() {
   const frontFiles = Array.from(frontFilesInput.files || []);
   const layoutKey = layoutSelect.value;
-  const layoutConfig = getLayoutConfig(layoutKey);
   const pageSize = getPageSizeForLayout(layoutKey, pageSizeSelect.value);
   const cardSize = getCardSizeForLayout(layoutKey);
+  const layoutConfig = computeLayoutGrid(layoutKey, pageSize, cardSize);
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
   const crosshairInsetPt = 0;
@@ -1214,16 +1268,15 @@ async function generatePdf() {
 
   const pdfDoc = await PDFDocument.create();
   const layoutKey = layoutSelect.value;
-  const layoutConfig = getLayoutConfig(layoutKey);
   const pageSize = getPageSizeForLayout(layoutKey, pageSizeSelect.value);
   const cardSize = getCardSizeForLayout(layoutKey);
+  const layoutConfig = computeLayoutGrid(layoutKey, pageSize, cardSize);
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
   const crosshairInsetPt = 0;
   const layoutCheck = layoutFits(pageSize, layoutConfig, cardSize);
-  const safeCheck = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
-  if (!layoutCheck.fits || !safeCheck.fits) {
-    setStatus("Layout exceeds safe print margins. Please adjust layout or page size.");
+  if (!layoutCheck.fits) {
+    setStatus("Layout exceeds page boundaries. Please adjust layout or page size.");
     return;
   }
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutKey);
