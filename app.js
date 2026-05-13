@@ -5,7 +5,6 @@ const backFilesInput = document.getElementById("backFiles");
 const layoutSelect = document.getElementById("layoutSelect");
 const pageSizeSelect = document.getElementById("pageSizeSelect");
 const cardSizeSelect = document.getElementById("cardSizeSelect");
-const fitSelect = document.getElementById("fitSelect");
 const gutterInput = document.getElementById("gutterInput");
 const crosshairLengthInput = document.getElementById("crosshairLength");
 const crosshairStrokeInput = document.getElementById("crosshairStroke");
@@ -503,32 +502,12 @@ async function embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches) {
   return pdfDoc.embedPng(bytes);
 }
 
-function drawImageFit(page, image, box, fitMode) {
-  const imgW = image.width;
-  const imgH = image.height;
-  const scale = fitMode === "contain"
-    ? Math.min(box.width / imgW, box.height / imgH)
-    : Math.max(box.width / imgW, box.height / imgH);
-
-  const drawW = imgW * scale;
-  const drawH = imgH * scale;
-  const x = box.x + (box.width - drawW) / 2;
-  const y = box.y + (box.height - drawH) / 2;
-
-  page.drawImage(image, { x, y, width: drawW, height: drawH });
+function drawImageFit(page, image, box) {
+  page.drawImage(image, { x: box.x, y: box.y, width: box.width, height: box.height });
 }
 
 
-function drawImageFitRotated(page, image, box, fitMode, rotationDeg) {
-  const imgW = image.width;
-  const imgH = image.height;
-  const scale = fitMode === "contain"
-    ? Math.min(box.width / imgH, box.height / imgW)
-    : Math.max(box.width / imgH, box.height / imgW);
-
-  const drawW = imgW * scale;
-  const drawH = imgH * scale;
-
+function drawImageFitRotated(page, image, box, rotationDeg) {
   let x = box.x;
   let y = box.y;
   if (rotationDeg === 90) {
@@ -542,8 +521,8 @@ function drawImageFitRotated(page, image, box, fitMode, rotationDeg) {
   page.drawImage(image, {
     x,
     y,
-    width: drawW,
-    height: drawH,
+    width: box.height,
+    height: box.width,
     rotate: degrees(rotationDeg),
   });
 }
@@ -888,13 +867,12 @@ async function renderPreview() {
   const cardSize = getCardSizeForLayout(layoutKey);
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
-  const crosshairInsetPt = inchesToPoints(bleedIn);
+  const crosshairInsetPt = 0;
   const fits = layoutFits(pageSize, layoutConfig, cardSize);
   const safeFits = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutSelect.value);
   const flipAxis = getDuplexFlipAxis(layoutSelect.value);
   const backPositions = getMirroredPositions(positions, pageSize.w, pageSize.h, flipAxis);
-  const fitMode = fitSelect.value;
   const crosshairLength = Number(crosshairLengthInput.value || 50);
   const crosshairStroke = Number(crosshairStrokeInput.value || 3);
   const backFiles = getBackFiles();
@@ -1049,14 +1027,7 @@ async function renderPreview() {
         ctx.save();
         ctx.translate(x + w, y);
         ctx.rotate(Math.PI / 2);
-        const drawScale = fitMode === "contain"
-          ? Math.min(h / img.width, w / img.height)
-          : Math.max(h / img.width, w / img.height);
-        const drawW = img.width * drawScale;
-        const drawH = img.height * drawScale;
-        const dx = (h - drawW) / 2;
-        const dy = (w - drawH) / 2;
-        ctx.drawImage(img, dx, dy, drawW, drawH);
+        ctx.drawImage(img, 0, 0, h, w);
         ctx.restore();
       } else {
         ctx.fillStyle = "#f3ebe0";
@@ -1084,14 +1055,7 @@ async function renderPreview() {
         ctx.save();
         ctx.translate(x, y + h);
         ctx.rotate(-Math.PI / 2);
-        const drawScale = fitMode === "contain"
-          ? Math.min(h / img.width, w / img.height)
-          : Math.max(h / img.width, w / img.height);
-        const drawW = img.width * drawScale;
-        const drawH = img.height * drawScale;
-        const dx = (h - drawW) / 2;
-        const dy = (w - drawH) / 2;
-        ctx.drawImage(img, dx, dy, drawW, drawH);
+        ctx.drawImage(img, 0, 0, h, w);
         ctx.restore();
       } else {
         ctx.fillStyle = "#f3ebe0";
@@ -1168,14 +1132,7 @@ async function renderPreview() {
 
     const img = cardImages[index];
     if (img) {
-      const imgScale = fitMode === "contain"
-        ? Math.min(w / img.width, h / img.height)
-        : Math.max(w / img.width, h / img.height);
-      const drawW = img.width * imgScale;
-      const drawH = img.height * imgScale;
-      const drawX = x + (w - drawW) / 2;
-      const drawY = y + (h - drawH) / 2;
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.drawImage(img, x, y, w, h);
     } else {
       ctx.fillStyle = "#f3ebe0";
       ctx.fillRect(x, y, w, h);
@@ -1262,7 +1219,7 @@ async function generatePdf() {
   const cardSize = getCardSizeForLayout(layoutKey);
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
-  const crosshairInsetPt = inchesToPoints(bleedIn);
+  const crosshairInsetPt = 0;
   const layoutCheck = layoutFits(pageSize, layoutConfig, cardSize);
   const safeCheck = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
   if (!layoutCheck.fits || !safeCheck.fits) {
@@ -1272,7 +1229,6 @@ async function generatePdf() {
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutKey);
   const flipAxis = getDuplexFlipAxis(layoutKey);
   const backPositions = getMirroredPositions(positions, pageSize.w, pageSize.h, flipAxis);
-  const fitMode = fitSelect.value;
   const crosshairLength = Number(crosshairLengthInput.value || 50);
   const crosshairStroke = Number(crosshairStrokeInput.value || 3);
   const duplex = backCount > 0 && !isGutterfold(layoutKey);
@@ -1299,7 +1255,7 @@ async function generatePdf() {
       pageImages.forEach((image, index) => {
         const box = leftPositions[index];
         if (!box) return;
-        drawImageFitRotated(page, image, box, fitMode, 90);
+        drawImageFitRotated(page, image, box, 90);
         if (shouldDrawCornerGuides("front", { gutterfold: true })) {
           drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
         }
@@ -1311,7 +1267,7 @@ async function generatePdf() {
         const backIndex = getAssignedBackIndex(globalIndex, backCount);
         const backEmbed = backIndex !== null ? backEmbeds[backIndex] : null;
         if (backEmbed) {
-          drawImageFitRotated(page, backEmbed, box, fitMode, 270);
+          drawImageFitRotated(page, backEmbed, box, 270);
         }
         if (shouldDrawCornerGuides("back", { gutterfold: true })) {
           drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
@@ -1339,7 +1295,7 @@ async function generatePdf() {
     pageImages.forEach((image, index) => {
       const box = positions[index];
       if (!box) return;
-      drawImageFit(page, image, box, fitMode);
+      drawImageFit(page, image, box);
       if (shouldDrawCornerGuides("front", { duplex })) {
         drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
       }
@@ -1365,7 +1321,7 @@ async function generatePdf() {
           y: box.y + nudgeYPts,
         };
         if (backEmbed) {
-          drawImageFit(backPage, backEmbed, nudgedBox, fitMode);
+          drawImageFit(backPage, backEmbed, nudgedBox);
         }
         if (shouldDrawCornerGuides("back", { duplex })) {
           drawCrosshairs(backPage, nudgedBox, crosshairLength, crosshairStroke, crosshairInsetPt);
@@ -1401,7 +1357,6 @@ function wirePreviewUpdates() {
     layoutSelect,
     pageSizeSelect,
     cardSizeSelect,
-    fitSelect,
     gutterInput,
     crosshairLengthInput,
     crosshairStrokeInput,
