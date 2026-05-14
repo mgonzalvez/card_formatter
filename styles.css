@@ -276,8 +276,9 @@ h1 {
 }
 
 .duplex-note {
-  font-size: 12px;
-  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .choice-row {

@@ -366,9 +366,6 @@ function getMirroredPositions(positions, pageW, pageH, axis) {
 }
 
 function getDuplexFlipAxis(layoutKey) {
-  if (layoutKey === "grid2x3bleed") {
-    return "vertical";
-  }
   return "horizontal";
 }
 
@@ -618,13 +615,15 @@ function drawCrosshairs(page, box, lengthPx, strokePt, insetPt = 0) {
   ];
 
   corners.forEach((corner) => {
+    const isLeft = corner.x === box.x + insetPt;
+    const isBottom = corner.y === box.y + insetPt;
     const horizontal = {
-      start: { x: corner.x + (corner.x === box.x ? -half : half), y: corner.y },
-      end: { x: corner.x + (corner.x === box.x ? half : -half), y: corner.y },
+      start: { x: corner.x + (isLeft ? -half : half), y: corner.y },
+      end: { x: corner.x + (isLeft ? half : -half), y: corner.y },
     };
     const vertical = {
-      start: { x: corner.x, y: corner.y + (corner.y === box.y ? -half : half) },
-      end: { x: corner.x, y: corner.y + (corner.y === box.y ? half : -half) },
+      start: { x: corner.x, y: corner.y + (isBottom ? -half : half) },
+      end: { x: corner.x, y: corner.y + (isBottom ? half : -half) },
     };
 
     [horizontal, vertical].forEach((line) => {
@@ -921,7 +920,7 @@ async function renderPreview() {
   const layoutConfig = computeLayoutGrid(layoutKey, pageSize, cardSize);
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
-  const crosshairInsetPt = 0;
+  const crosshairInsetPt = layoutKey === "grid2x3bleed" ? inchesToPoints(bleedIn) : 0;
   const fits = layoutFits(pageSize, layoutConfig, cardSize);
   const safeFits = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutSelect.value);
@@ -1232,13 +1231,15 @@ function drawPreviewCrosshairs(ctx, x, y, w, h, lengthPx, strokePt, insetPx = 0)
   ctx.save();
   ctx.setLineDash([6, 6]);
   corners.forEach((corner) => {
+    const isLeft = corner.x === x + insetPx;
+    const isBottom = corner.y === y + insetPx;
     const horizontal = {
-      start: { x: corner.x + (corner.x === x + insetPx ? -half : half), y: corner.y },
-      end: { x: corner.x + (corner.x === x + insetPx ? half : -half), y: corner.y },
+      start: { x: corner.x + (isLeft ? -half : half), y: corner.y },
+      end: { x: corner.x + (isLeft ? half : -half), y: corner.y },
     };
     const vertical = {
-      start: { x: corner.x, y: corner.y + (corner.y === y + insetPx ? -half : half) },
-      end: { x: corner.x, y: corner.y + (corner.y === y + insetPx ? half : -half) },
+      start: { x: corner.x, y: corner.y + (isBottom ? -half : half) },
+      end: { x: corner.x, y: corner.y + (isBottom ? half : -half) },
     };
 
     [horizontal, vertical].forEach((line) => {
@@ -1273,7 +1274,7 @@ async function generatePdf() {
   const layoutConfig = computeLayoutGrid(layoutKey, pageSize, cardSize);
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
-  const crosshairInsetPt = 0;
+  const crosshairInsetPt = layoutKey === "grid2x3bleed" ? inchesToPoints(bleedIn) : 0;
   const layoutCheck = layoutFits(pageSize, layoutConfig, cardSize);
   if (!layoutCheck.fits) {
     setStatus("Layout exceeds page boundaries. Please adjust layout or page size.");
@@ -1523,9 +1524,9 @@ function updateLayoutUi() {
   } else if (!hasBacks) {
     duplexNote.textContent = "Upload a back image to enable duplex output.";
   } else if (layoutSelect.value === "grid2x3bleed") {
-    duplexNote.textContent = "Flip on short edge for Buttonshy Games Style.";
+    duplexNote.textContent = "⚠ Duplex print: flip on the SHORT edge (landscape binding).";
   } else {
-    duplexNote.textContent = "Flip on long edge for Traditional card grid.";
+    duplexNote.textContent = "⚠ Duplex print: flip on the LONG edge (portrait binding).";
   }
 }
 
