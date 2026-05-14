@@ -145,6 +145,18 @@
           </label>
         </div>
         <p class="helper" id="cornerGuideModeHelper">Choose whether corner cutting guides print on the front pages, back pages, or both. Applies to duplex layouts only.</p>
+        <div class="input-row" id="bleedColorControls" style="display:none;">
+          <label>
+            <span>Bleed area color</span>
+            <div class="bleed-color-row">
+              <label class="bleed-auto-toggle">
+                <input id="bleedAutoColor" type="checkbox" checked />
+                <span>Auto</span>
+              </label>
+              <input id="bleedColorPicker" type="color" value="#ffffff" disabled />
+            </div>
+          </label>
+        </div>
         <div class="action-row">
           <button id="autoLayoutBtn" type="button">Auto-layout</button>
           <div class="helper">Chooses the best fitting layout and page size.</div>

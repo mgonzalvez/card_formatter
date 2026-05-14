@@ -47,10 +47,14 @@ const summaryValue3 = document.getElementById("summaryValue3");
 const gutterLabel = document.getElementById("gutterLabel");
 const exportHeading = document.getElementById("exportHeading");
 const duplexNote = document.getElementById("duplexNote");
+const bleedColorControls = document.getElementById("bleedColorControls");
+const bleedAutoColor = document.getElementById("bleedAutoColor");
+const bleedColorPicker = document.getElementById("bleedColorPicker");
 let storedPreviewBackState = previewBackToggle.checked;
 let backAssignments = [];
 let lastUnitMetric = false;
 let currentPreviewPage = 0;
+let customBleedColor = null; // {r, g, b} or null for auto
 
 const BLEED_GAP_IN = 0.25;
 const BLEED_EXTEND_IN = 0.25;
@@ -81,6 +85,15 @@ function inchesToPoints(inches) {
 
 function inchesToMm(inches) {
   return inches * 25.4;
+}
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16),
+  } : { r: 255, g: 255, b: 255 };
 }
 
 function formatNumber(value, decimals = 1) {
@@ -433,7 +446,7 @@ async function getNormalizedDataUrl(file) {
   return readFileAsDataUrl(file);
 }
 
-async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches) {
+async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, overrideColor) {
   if (!bleedIn || !cardSizeInches || !cardSizeInches.w || !cardSizeInches.h) {
     return dataUrl;
   }
@@ -511,12 +524,18 @@ async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches) {
       return { r, g, b };
     };
 
-    const dominant = getDominantColor([
-      { x: 0, y: 0, w: img.width, h: samplePxY },
-      { x: 0, y: img.height - samplePxY, w: img.width, h: samplePxY },
-      { x: 0, y: 0, w: samplePxX, h: img.height },
-      { x: img.width - samplePxX, y: 0, w: samplePxX, h: img.height },
-    ]);
+    let fill;
+    if (overrideColor) {
+      fill = overrideColor;
+    } else {
+      const dominant = getDominantColor([
+        { x: 0, y: 0, w: img.width, h: samplePxY },
+        { x: 0, y: img.height - samplePxY, w: img.width, h: samplePxY },
+        { x: 0, y: 0, w: samplePxX, h: img.height },
+        { x: img.width - samplePxX, y: 0, w: samplePxX, h: img.height },
+      ]);
+      fill = dominant;
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = img.width + bleedPxX * 2;
@@ -542,10 +561,10 @@ async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches) {
   }
 }
 
-async function embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches) {
+async function embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches, overrideColor) {
   let dataUrl = await getNormalizedDataUrl(file);
   if (bleedIn > 0) {
-    dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches);
+    dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, overrideColor);
   }
   dataUrl = await ensurePngDataUrl(dataUrl);
   const response = await fetch(dataUrl);
@@ -784,13 +803,13 @@ function pickAutoLayout() {
 }
 
 async function loadPreviewImages(files, options = {}) {
-  const { bleedIn = 0, cardSizeInches = null } = options;
+  const { bleedIn = 0, cardSizeInches = null, overrideColor = null } = options;
   const images = [];
   for (const file of files) {
     try {
       let dataUrl = await getNormalizedDataUrl(file);
       if (bleedIn > 0 && cardSizeInches) {
-        dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches);
+        dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, overrideColor);
       }
       const img = await loadImageFromDataUrl(dataUrl);
       images.push(img);
@@ -811,7 +830,7 @@ async function renderThumbnails() {
   normalizeAssignments(frontFiles.length, backCount);
 
   const frontList = frontFiles;
-  const frontImages = await loadPreviewImages(frontList, { bleedIn, cardSizeInches });
+  const frontImages = await loadPreviewImages(frontList, { bleedIn, cardSizeInches, overrideColor: customBleedColor });
   frontThumbs.innerHTML = "";
   frontImages.forEach((img, index) => {
     const wrapper = document.createElement("div");
@@ -867,7 +886,7 @@ async function renderThumbnails() {
   backThumbs.innerHTML = "";
   if (backCount) {
     const backList = backFiles;
-    const backImages = await loadPreviewImages(backList, { bleedIn, cardSizeInches });
+    const backImages = await loadPreviewImages(backList, { bleedIn, cardSizeInches, overrideColor: customBleedColor });
     backImages.forEach((img, index) => {
       const wrapper = document.createElement("div");
       wrapper.className = "thumb";
@@ -1044,7 +1063,7 @@ async function renderPreview() {
 
   let cardImages = [];
   if (previewBack && backFiles.length) {
-    const backImages = await loadPreviewImages(backFiles, { bleedIn, cardSizeInches });
+    const backImages = await loadPreviewImages(backFiles, { bleedIn, cardSizeInches, overrideColor: customBleedColor });
     for (let i = 0; i < frontPageFiles.length; i += 1) {
       const globalIndex = pageStart + i;
       const backIndex = getAssignedBackIndex(globalIndex, backCount);
@@ -1052,7 +1071,7 @@ async function renderPreview() {
     }
   } else if (!previewBack) {
     cardImages = frontPageFiles.length
-      ? await loadPreviewImages(frontPageFiles, { bleedIn, cardSizeInches })
+      ? await loadPreviewImages(frontPageFiles, { bleedIn, cardSizeInches, overrideColor: customBleedColor })
       : [];
   } else if (previewBack && !backFiles.length) {
     previewMeta.textContent = "No back image available for preview. Upload a back image.";
@@ -1062,9 +1081,9 @@ async function renderPreview() {
     const leftPositions = positions.filter((_, index) => index % 2 === 0);
     const rightPositions = positions.filter((_, index) => index % 2 === 1);
     const frontImagesGutter = frontPageFiles.length
-      ? await loadPreviewImages(frontPageFiles, { bleedIn, cardSizeInches })
+      ? await loadPreviewImages(frontPageFiles, { bleedIn, cardSizeInches, overrideColor: customBleedColor })
       : [];
-    const backImagesGutter = backFiles.length ? await loadPreviewImages(backFiles, { bleedIn, cardSizeInches }) : [];
+    const backImagesGutter = backFiles.length ? await loadPreviewImages(backFiles, { bleedIn, cardSizeInches, overrideColor: customBleedColor }) : [];
 
     leftPositions.forEach((box, index) => {
       const x = pageX + box.x * scale;
@@ -1289,12 +1308,12 @@ async function generatePdf() {
 
   const frontEmbeds = [];
   for (const file of frontFiles) {
-    frontEmbeds.push(await embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches));
+    frontEmbeds.push(await embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches, customBleedColor));
   }
 
   const backEmbeds = [];
   for (const file of backFiles) {
-    backEmbeds.push(await embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches));
+    backEmbeds.push(await embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches, customBleedColor));
   }
 
   if (isGutterfold(layoutKey)) {
@@ -1490,6 +1509,9 @@ function updateLayoutUi() {
     gutterLabel.textContent = "No gutter/bleed for Traditional card grid";
   }
 
+  const isButtonshy = layoutSelect.value === "grid2x3bleed";
+  bleedColorControls.style.display = isButtonshy ? "grid" : "none";
+
   const duplexLayouts = layoutSelect.value === "grid3x3" || layoutSelect.value === "grid2x3bleed";
   nudgeToggle.disabled = !duplexLayouts || !hasBacks;
   if (!duplexLayouts || !hasBacks) {
@@ -1543,6 +1565,20 @@ layoutSelect.addEventListener("change", () => {
 
 updateLayoutUi();
 updateUnitDisplay();
+
+bleedAutoColor.addEventListener("change", () => {
+  bleedColorPicker.disabled = bleedAutoColor.checked;
+  customBleedColor = bleedAutoColor.checked ? null : hexToRgb(bleedColorPicker.value);
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
+});
+
+bleedColorPicker.addEventListener("input", () => {
+  customBleedColor = hexToRgb(bleedColorPicker.value);
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
+});
+
 const savedTheme = localStorage.getItem("pnpfinder-theme");
 if (savedTheme === "dark" || savedTheme === "light") {
   document.body.dataset.theme = savedTheme;

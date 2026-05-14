@@ -281,6 +281,41 @@ h1 {
   color: var(--ink);
 }
 
+.bleed-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.bleed-auto-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bleed-auto-toggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+#bleedColorPicker {
+  width: 36px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  background: var(--bg);
+}
+
+#bleedColorPicker:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .choice-row {
   display: flex;
   align-items: center;
