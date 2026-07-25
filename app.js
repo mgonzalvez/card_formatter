@@ -50,6 +50,13 @@ const duplexNote = document.getElementById("duplexNote");
 const bleedColorControls = document.getElementById("bleedColorControls");
 const bleedAutoColor = document.getElementById("bleedAutoColor");
 const bleedColorPicker = document.getElementById("bleedColorPicker");
+const customSizeControls = document.getElementById("customSizeControls");
+const customCardWidthInput = document.getElementById("customCardWidth");
+const customCardHeightInput = document.getElementById("customCardHeight");
+const customWidthLabel = document.getElementById("customWidthLabel");
+const customHeightLabel = document.getElementById("customHeightLabel");
+const customSizeMessage = document.getElementById("customSizeMessage");
+const customLayoutResult = document.getElementById("customLayoutResult");
 let storedPreviewBackState = previewBackToggle.checked;
 let backAssignments = [];
 let lastUnitMetric = false;
@@ -73,6 +80,10 @@ const cardSizes = {
   euro: { w: 2.32, h: 3.62 },
   mini: { w: 1.75, h: 2.5 },
 };
+
+let customCardSize = { ...cardSizes.poker };
+let previousCardSizeKey = "poker";
+let customInputTimer = null;
 
 
 function setStatus(message) {
@@ -124,6 +135,64 @@ function getBleedValueInInches() {
   return Math.min(0.75, Math.max(0.10, inches));
 }
 
+function isCustomCardSize() {
+  return cardSizeSelect.value === "custom";
+}
+
+function getSelectedCardSizeInches() {
+  return isCustomCardSize() ? { ...customCardSize } : (cardSizes[cardSizeSelect.value] || cardSizes.poker);
+}
+
+function getCustomSizeValidation() {
+  return CardLayoutEngine.validateCardSize(customCardSize, 0.5, 11.19);
+}
+
+function setCustomInputsFromState() {
+  const useMetric = unitToggle.checked;
+  const width = useMetric ? inchesToMm(customCardSize.w) : customCardSize.w;
+  const height = useMetric ? inchesToMm(customCardSize.h) : customCardSize.h;
+  customCardWidthInput.value = Number.isFinite(width) ? formatNumber(width, useMetric ? 1 : 2) : "";
+  customCardHeightInput.value = Number.isFinite(height) ? formatNumber(height, useMetric ? 1 : 2) : "";
+}
+
+function updateCustomSizeUi() {
+  const useMetric = unitToggle.checked;
+  const custom = isCustomCardSize();
+  customSizeControls.hidden = !custom;
+  customWidthLabel.textContent = useMetric ? "Width (mm)" : "Width (in)";
+  customHeightLabel.textContent = useMetric ? "Height (mm)" : "Height (in)";
+  customCardWidthInput.min = useMetric ? "12.7" : "0.5";
+  customCardHeightInput.min = useMetric ? "12.7" : "0.5";
+  customCardWidthInput.max = useMetric ? "284.2" : "11.19";
+  customCardHeightInput.max = useMetric ? "284.2" : "11.19";
+  customCardWidthInput.step = useMetric ? "0.1" : "0.01";
+  customCardHeightInput.step = useMetric ? "0.1" : "0.01";
+
+  if (!custom) {
+    customSizeMessage.textContent = "";
+    customLayoutResult.textContent = "";
+    return;
+  }
+
+  const validation = getCustomSizeValidation();
+  customSizeMessage.textContent = validation.valid
+    ? ""
+    : (useMetric
+      ? validation.message.replace("0.5 in", "12.7 mm").replace("11.19 in", "284.2 mm")
+      : validation.message);
+}
+
+function readCustomSizeInputs() {
+  const useMetric = unitToggle.checked;
+  const width = Number(customCardWidthInput.value);
+  const height = Number(customCardHeightInput.value);
+  customCardSize = {
+    w: Number.isFinite(width) ? (useMetric ? width / 25.4 : width) : NaN,
+    h: Number.isFinite(height) ? (useMetric ? height / 25.4 : height) : NaN,
+  };
+  updateCustomSizeUi();
+}
+
 function updateUnitDisplay() {
   const useMetric = unitToggle.checked;
   unitLabel.textContent = useMetric ? "Units: Metric (mm)" : "Units: Imperial (inches)";
@@ -154,26 +223,29 @@ function updateUnitDisplay() {
     { key: "bridge", label: "Bridge" },
     { key: "euro", label: "Euro" },
     { key: "mini", label: "Mini" },
+    { key: "custom", label: "Custom…" },
   ];
   const current = cardSizeSelect.value;
   cardSizeSelect.innerHTML = "";
   sizeEntries.forEach((entry) => {
-    const size = cardSizes[entry.key];
     const option = document.createElement("option");
     option.value = entry.key;
-    option.textContent = `${entry.label} (${formatSizeLabel(size, useMetric)})`;
+    const size = cardSizes[entry.key];
+    option.textContent = size ? `${entry.label} (${formatSizeLabel(size, useMetric)})` : entry.label;
     cardSizeSelect.appendChild(option);
   });
   cardSizeSelect.value = current || "poker";
+  setCustomInputsFromState();
+  updateCustomSizeUi();
 
   if (useMetric) {
     layoutHelper.textContent =
-      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 6.35 mm per side (adjustable). " +
-      "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
+      "Buttonshy extends image edges by 6.35 mm per side (adjustable), with cut guides at the original card size. " +
+      "Custom sizes automatically choose the safest paper orientation and card placement.";
   } else {
     layoutHelper.textContent =
-      "Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side (adjustable). " +
-      "Cut guides remain at the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.";
+      "Buttonshy extends image edges by 0.25\" per side (adjustable), with cut guides at the original card size. " +
+      "Custom sizes automatically choose the safest paper orientation and card placement.";
   }
   updateSummary();
 }
@@ -181,14 +253,16 @@ function updateUnitDisplay() {
 function updateSummary() {
   const layoutKey = layoutSelect.value;
   const useMetric = unitToggle.checked;
-  const cardSize = cardSizes[cardSizeSelect.value] || cardSizes.poker;
+  const cardSize = getSelectedCardSizeInches();
   const backCount = getBackFiles().length;
 
   summaryLabel1.textContent = "Layout";
   summaryValue1.textContent = formatLayoutName(layoutKey);
 
   summaryLabel2.textContent = "Card size";
-  summaryValue2.textContent = formatSizeLabel(cardSize, useMetric);
+  summaryValue2.textContent = isCustomCardSize() && !getCustomSizeValidation().valid
+    ? "Custom size incomplete"
+    : `${isCustomCardSize() ? "Custom · " : ""}${formatSizeLabel(cardSize, useMetric)}`;
 
   summaryLabel3.textContent = "Details";
   let detailParts = [];
@@ -286,12 +360,12 @@ function getPageSizePoints(pageSizeKey) {
 }
 
 function getCardSizePoints() {
-  const size = cardSizes[cardSizeSelect.value] || cardSizes.poker;
+  const size = getSelectedCardSizeInches();
   return { w: inchesToPoints(size.w), h: inchesToPoints(size.h) };
 }
 
 function getCardSizeInches() {
-  return cardSizes[cardSizeSelect.value] || cardSizes.poker;
+  return getSelectedCardSizeInches();
 }
 
 function isGutterfold(layoutKey) {
@@ -326,6 +400,96 @@ function getCardContentSizeForLayout(layoutKey) {
     return { w: cardSize.h, h: cardSize.w };
   }
   return cardSize;
+}
+
+function candidateToLayoutState(candidate) {
+  return {
+    layoutKey: candidate.layout,
+    pageKey: candidate.page,
+    orientation: candidate.orientation,
+    cardRotation: candidate.cardRotation,
+    pageSize: {
+      w: inchesToPoints(candidate.pageSize.w),
+      h: inchesToPoints(candidate.pageSize.h),
+    },
+    cardSize: {
+      w: inchesToPoints(candidate.cardBoxSize.w),
+      h: inchesToPoints(candidate.cardBoxSize.h),
+    },
+    layoutConfig: {
+      cols: candidate.cols,
+      rows: candidate.rows,
+      gap: 0,
+      centerGutter: candidate.centerGutter,
+    },
+    capacity: candidate.capacity,
+    candidate,
+  };
+}
+
+function getCustomCandidates(layoutKeys, pageKeys) {
+  const validation = getCustomSizeValidation();
+  if (!validation.valid) return [];
+  return CardLayoutEngine.enumerateCandidates({
+    layoutKeys,
+    pageKeys,
+    pageSizes,
+    cardSize: customCardSize,
+    bleedIn: getBleedValueInInches(),
+    gutterIn: getGutterValueInInches(),
+    safeMarginIn: SAFE_MARGIN_IN,
+    allowCardRotation: true,
+  });
+}
+
+function getActiveLayoutState(layoutKey = layoutSelect.value, pageKey = pageSizeSelect.value) {
+  if (isCustomCardSize()) {
+    const candidates = getCustomCandidates([layoutKey], [pageKey]);
+    const best = CardLayoutEngine.chooseBestCandidate(
+      candidates,
+      frontFilesInput.files?.length || 0,
+      { layout: layoutKey, page: pageKey }
+    );
+    return best ? candidateToLayoutState(best) : null;
+  }
+
+  const pageSize = getPageSizeForLayout(layoutKey, pageKey);
+  const cardSize = getCardSizeForLayout(layoutKey);
+  const layoutConfig = computeLayoutGrid(layoutKey, pageSize, cardSize);
+  return {
+    layoutKey,
+    pageKey,
+    orientation: pageSize.w > pageSize.h ? "landscape" : "portrait",
+    cardRotation: false,
+    pageSize,
+    cardSize,
+    layoutConfig,
+    capacity: isGutterfold(layoutKey)
+      ? layoutConfig.rows
+      : layoutConfig.cols * layoutConfig.rows,
+    candidate: null,
+  };
+}
+
+function formatOrientation(orientation) {
+  return orientation === "landscape" ? "Landscape" : "Portrait";
+}
+
+function updateCustomLayoutResult(state) {
+  if (!isCustomCardSize()) return;
+  if (!getCustomSizeValidation().valid) {
+    customLayoutResult.textContent = "";
+    return;
+  }
+  if (!state) {
+    customLayoutResult.textContent = "No safe arrangement fits this layout and paper size.";
+    return;
+  }
+  const grid = isGutterfold(state.layoutKey)
+    ? `${state.layoutConfig.rows} divider${state.layoutConfig.rows === 1 ? "" : "s"} per sheet`
+    : `${state.layoutConfig.cols} × ${state.layoutConfig.rows} · ${state.capacity} per sheet`;
+  const rotation = state.cardRotation ? " · cards rotated for best fit" : "";
+  customLayoutResult.textContent = `${formatPageName(state.pageKey)} · ${formatOrientation(state.orientation)} · ${grid}${rotation}`;
 }
 
 function getPositions(layoutConfig, pageW, pageH, cardW, cardH, layoutKey) {
@@ -378,8 +542,8 @@ function getMirroredPositions(positions, pageW, pageH, axis) {
   }));
 }
 
-function getDuplexFlipAxis(layoutKey) {
-  return "horizontal";
+function getDuplexFlipAxis(layoutKey, orientation = "portrait") {
+  return CardLayoutEngine.getDuplexFlipAxis(layoutKey, orientation);
 }
 
 async function readFileAsArrayBuffer(file) {
@@ -430,9 +594,11 @@ async function ensurePngDataUrl(dataUrl) {
   return canvas.toDataURL("image/png");
 }
 
-async function getNormalizedDataUrl(file) {
+async function getNormalizedDataUrl(file, targetSizeInches = getCardSizeInches()) {
   const img = await loadImageFromFile(file);
-  if (img.width > img.height) {
+  const sourceLandscape = img.width > img.height;
+  const targetLandscape = targetSizeInches.w > targetSizeInches.h;
+  if (sourceLandscape !== targetLandscape) {
     const canvas = document.createElement("canvas");
     canvas.width = img.height;
     canvas.height = img.width;
@@ -548,8 +714,8 @@ async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, o
       ctx.fillRect(x, y, w, h);
     };
 
-    // Fill all bleed areas with dominant border color for consistency
-    fillRect(dominant, 0, 0, canvas.width, canvas.height);
+    // Fill all bleed areas with the detected or user-selected color.
+    fillRect(fill, 0, 0, canvas.width, canvas.height);
 
     // Draw center image last
     ctx.drawImage(img, bleedPxX, bleedPxY);
@@ -562,7 +728,7 @@ async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, o
 }
 
 async function embedNormalizedImage(pdfDoc, file, bleedIn, cardSizeInches, overrideColor) {
-  let dataUrl = await getNormalizedDataUrl(file);
+  let dataUrl = await getNormalizedDataUrl(file, cardSizeInches);
   if (bleedIn > 0) {
     dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, overrideColor);
   }
@@ -736,31 +902,53 @@ function layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize) {
   return { fits: totalW <= safeW && totalH <= safeH, totalW, totalH, safeW, safeH };
 }
 
-function suggestAlternatives(pageKey, layoutKey, cardKey) {
-  const suggestions = [];
-  const pageOptions = Object.keys(pageSizes);
-  const layoutOptions = ["grid3x3", "gutterfold", "grid2x3bleed"];
+function isLayoutStateSafe(state) {
+  if (!state) return false;
+  const pageFit = layoutFits(state.pageSize, state.layoutConfig, state.cardSize);
+  const safeFit = layoutFitsWithinSafeArea(state.pageSize, state.layoutConfig, state.cardSize);
+  return pageFit.fits && safeFit.fits;
+}
 
+function getValidLayoutStates(layoutOptions, pageOptions) {
+  const states = [];
   layoutOptions.forEach((layout) => {
     pageOptions.forEach((page) => {
-      const layoutConfig = getLayoutConfig(layout);
-      const pageSize = getPageSizeForLayout(layout, page);
-      const cardSize = getCardSizeForLayout(layout);
-      const check = layoutFits(pageSize, layoutConfig, cardSize);
-      if (check.fits) {
-        suggestions.push({ layout, page });
-      }
+      const state = getActiveLayoutState(layout, page);
+      if (isLayoutStateSafe(state)) states.push(state);
     });
   });
+  return states;
+}
 
-  const unique = [];
-  suggestions.forEach((item) => {
-    if (!unique.find((entry) => entry.layout === item.layout && entry.page === item.page)) {
-      unique.push(item);
-    }
-  });
+function compareLayoutStates(a, b, frontCount, preferences = {}) {
+  return CardLayoutEngine.compareCandidates(
+    {
+      layout: a.layoutKey,
+      page: a.pageKey,
+      orientation: a.orientation,
+      cardRotation: a.cardRotation,
+      capacity: a.capacity,
+    },
+    {
+      layout: b.layoutKey,
+      page: b.pageKey,
+      orientation: b.orientation,
+      cardRotation: b.cardRotation,
+      capacity: b.capacity,
+    },
+    frontCount,
+    preferences
+  );
+}
 
-  return unique.slice(0, 3);
+function suggestAlternatives(pageKey, layoutKey) {
+  const pageOptions = Object.keys(pageSizes);
+  const layoutOptions = ["grid3x3", "gutterfold", "grid2x3bleed"];
+  const frontCount = frontFilesInput.files?.length || 0;
+  return getValidLayoutStates(layoutOptions, pageOptions)
+    .filter((state) => state.layoutKey !== layoutKey || state.pageKey !== pageKey)
+    .sort((a, b) => compareLayoutStates(a, b, frontCount, { layout: layoutKey, page: pageKey }))
+    .slice(0, 3);
 }
 
 function formatLayoutName(layout) {
@@ -778,27 +966,14 @@ function pickAutoLayout() {
   const pageOptions = ["letter", "a4"];
   const currentLayout = layoutSelect.value;
   const currentPage = pageSizeSelect.value;
-
-  const candidates = [];
-  layoutOptions.forEach((layout) => {
-    pageOptions.forEach((page) => {
-      const layoutConfig = getLayoutConfig(layout);
-      const pageSize = getPageSizeForLayout(layout, page);
-      const cardSize = getCardSizeForLayout(layout);
-      const check = layoutFits(pageSize, layoutConfig, cardSize);
-      if (check.fits) {
-        const cardsPerPage = layoutConfig.cols * layoutConfig.rows;
-        const priority = (layout === currentLayout ? 2 : 0) + (page === currentPage ? 1 : 0);
-        candidates.push({ layout, page, cardsPerPage, priority });
-      }
-    });
-  });
-
-  candidates.sort((a, b) => {
-    if (b.cardsPerPage !== a.cardsPerPage) return b.cardsPerPage - a.cardsPerPage;
-    return b.priority - a.priority;
-  });
-
+  const frontCount = frontFilesInput.files?.length || 0;
+  const candidates = getValidLayoutStates(layoutOptions, pageOptions);
+  candidates.sort((a, b) => compareLayoutStates(
+    a,
+    b,
+    frontCount,
+    { layout: currentLayout, page: currentPage }
+  ));
   return candidates[0] || null;
 }
 
@@ -807,7 +982,7 @@ async function loadPreviewImages(files, options = {}) {
   const images = [];
   for (const file of files) {
     try {
-      let dataUrl = await getNormalizedDataUrl(file);
+      let dataUrl = await getNormalizedDataUrl(file, cardSizeInches || getCardSizeInches());
       if (bleedIn > 0 && cardSizeInches) {
         dataUrl = await createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, overrideColor);
       }
@@ -934,16 +1109,63 @@ async function renderThumbnails() {
 async function renderPreview() {
   const frontFiles = Array.from(frontFilesInput.files || []);
   const layoutKey = layoutSelect.value;
-  const pageSize = getPageSizeForLayout(layoutKey, pageSizeSelect.value);
-  const cardSize = getCardSizeForLayout(layoutKey);
-  const layoutConfig = computeLayoutGrid(layoutKey, pageSize, cardSize);
+  const layoutState = getActiveLayoutState(layoutKey, pageSizeSelect.value);
+  updateCustomLayoutResult(layoutState);
+  if (!layoutState) {
+    const validation = getCustomSizeValidation();
+    const message = validation.valid
+      ? "No safe arrangement fits this layout and paper size."
+      : validation.message;
+    const suggestions = validation.valid
+      ? suggestAlternatives(pageSizeSelect.value, layoutSelect.value)
+      : [];
+    if (suggestions.length) {
+      const links = suggestions.map((state) => {
+        const text = `${formatLayoutName(state.layoutKey)} on ${formatPageName(state.pageKey)} (${formatOrientation(state.orientation)})`;
+        return `<span class="suggestion-link" data-layout="${state.layoutKey}" data-page="${state.pageKey}">${text}</span>`;
+      }).join(" · ");
+      previewMeta.innerHTML = `${message} <span class="suggestion-hint">Try: </span>${links}`;
+      previewMeta.querySelectorAll(".suggestion-link").forEach((el) => {
+        el.addEventListener("click", () => {
+          layoutSelect.value = el.dataset.layout;
+          pageSizeSelect.value = el.dataset.page;
+          updateLayoutUi();
+          renderPreview();
+        });
+      });
+    } else {
+      previewMeta.textContent = message;
+    }
+    setStatus(message);
+    generateBtn.disabled = true;
+    previewPrev.disabled = true;
+    previewNext.disabled = true;
+    previewPageIndicator.textContent = "Page 1 of 1";
+    const invalidCtx = previewCanvas.getContext("2d");
+    invalidCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    invalidCtx.fillStyle = "#ffffff";
+    invalidCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+    invalidCtx.fillStyle = "#737d8e";
+    invalidCtx.font = "600 16px -apple-system, BlinkMacSystemFont, sans-serif";
+    invalidCtx.textAlign = "center";
+    invalidCtx.fillText(message, previewCanvas.width / 2, previewCanvas.height / 2);
+    invalidCtx.textAlign = "start";
+    return;
+  }
+  const {
+    pageSize,
+    cardSize,
+    layoutConfig,
+    orientation,
+    cardRotation,
+  } = layoutState;
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
   const crosshairInsetPt = layoutKey === "grid2x3bleed" ? inchesToPoints(bleedIn) : 0;
   const fits = layoutFits(pageSize, layoutConfig, cardSize);
   const safeFits = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutSelect.value);
-  const flipAxis = getDuplexFlipAxis(layoutSelect.value);
+  const flipAxis = getDuplexFlipAxis(layoutSelect.value, orientation);
   const backPositions = getMirroredPositions(positions, pageSize.w, pageSize.h, flipAxis);
   const crosshairLength = Number(crosshairLengthInput.value || 50);
   const crosshairStroke = Number(crosshairStrokeInput.value || 3);
@@ -957,13 +1179,14 @@ async function renderPreview() {
   const nudgeXPts = inchesToPoints(Math.min(10, Math.max(-10, Number(nudgeXInput.value || 0))) / 25.4);
   const nudgeYPts = inchesToPoints(Math.min(5, Math.max(-5, Number(nudgeYInput.value || 0))) / 25.4);
 
+  generateBtn.disabled = !fits.fits || !safeFits.fits;
   if (!fits.fits || !safeFits.fits) {
-    const suggestions = suggestAlternatives(pageSizeSelect.value, layoutSelect.value, cardSizeSelect.value);
+    const suggestions = suggestAlternatives(pageSizeSelect.value, layoutSelect.value);
     const reason = !fits.fits ? "Layout exceeds page size." : "Layout exceeds safe print margins.";
     if (suggestions.length) {
       const links = suggestions.map((s) => {
-        const text = `${formatLayoutName(s.layout)} on ${formatPageName(s.page)}`;
-        return `<span class="suggestion-link" data-layout="${s.layout}" data-page="${s.page}">${text}</span>`;
+        const text = `${formatLayoutName(s.layoutKey)} on ${formatPageName(s.pageKey)} (${formatOrientation(s.orientation)})`;
+        return `<span class="suggestion-link" data-layout="${s.layoutKey}" data-page="${s.pageKey}">${text}</span>`;
       }).join(" · ");
       previewMeta.innerHTML = `${reason} <span class="suggestion-hint">Try: </span>${links}`;
       setStatus("Layout is unsafe to print. Click a suggestion below to switch.");
@@ -976,13 +1199,12 @@ async function renderPreview() {
         });
       });
     } else {
-      const cardSize = getCardSizeForLayout(cardSizeSelect.value);
-      const unitLabel = lastUnitMetric === "mm" ? "mm" : '"';
-      previewMeta.textContent = `${reason} Try: smaller card size, different layout, or ${unitLabel} page size.`;
+      previewMeta.textContent = `${reason} Try a smaller card size, different layout, or different page size.`;
       setStatus("Layout is unsafe to print. No suggestions available.");
     }
   } else {
-    previewMeta.textContent = "Preview updates automatically.";
+    const rotationText = cardRotation ? " · cards rotated for best fit" : "";
+    previewMeta.textContent = `${formatPageName(pageSizeSelect.value)} · ${formatOrientation(orientation)} · ${layoutState.capacity} per sheet${rotationText}`;
     const frontCount = frontFilesInput.files?.length || 0;
     const backCount = getBackFiles().length;
     if (frontCount) {
@@ -1204,7 +1426,7 @@ async function renderPreview() {
 
     const img = cardImages[index];
     if (img) {
-      ctx.drawImage(img, x, y, w, h);
+      drawPreviewImage(ctx, img, x, y, w, h, cardRotation ? 90 : 0);
     } else {
       ctx.fillStyle = "#f3ebe0";
       ctx.fillRect(x, y, w, h);
@@ -1236,6 +1458,18 @@ async function renderPreview() {
     ctx.fillText("Layout exceeds safe print margins", pageX + 12, pageY + 22);
   }
 
+}
+
+function drawPreviewImage(ctx, img, x, y, w, h, rotationDeg = 0) {
+  if (rotationDeg === 90) {
+    ctx.save();
+    ctx.translate(x + w, y);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(img, 0, 0, h, w);
+    ctx.restore();
+    return;
+  }
+  ctx.drawImage(img, x, y, w, h);
 }
 
 function drawPreviewCrosshairs(ctx, x, y, w, h, lengthPx, strokePt, insetPx = 0) {
@@ -1286,21 +1520,31 @@ async function generatePdf() {
 
   setStatus("Embedding images...");
 
-  const pdfDoc = await PDFDocument.create();
   const layoutKey = layoutSelect.value;
-  const pageSize = getPageSizeForLayout(layoutKey, pageSizeSelect.value);
-  const cardSize = getCardSizeForLayout(layoutKey);
-  const layoutConfig = computeLayoutGrid(layoutKey, pageSize, cardSize);
+  const layoutState = getActiveLayoutState(layoutKey, pageSizeSelect.value);
+  if (!layoutState) {
+    setStatus("No safe arrangement fits the selected size, layout, and paper.");
+    return;
+  }
+  const {
+    pageSize,
+    cardSize,
+    layoutConfig,
+    orientation,
+    cardRotation,
+  } = layoutState;
   const cardSizeInches = getCardSizeInches();
   const bleedIn = layoutKey === "grid2x3bleed" ? getBleedValueInInches() : 0;
   const crosshairInsetPt = layoutKey === "grid2x3bleed" ? inchesToPoints(bleedIn) : 0;
   const layoutCheck = layoutFits(pageSize, layoutConfig, cardSize);
-  if (!layoutCheck.fits) {
-    setStatus("Layout exceeds page boundaries. Please adjust layout or page size.");
+  const safeLayoutCheck = layoutFitsWithinSafeArea(pageSize, layoutConfig, cardSize);
+  if (!layoutCheck.fits || !safeLayoutCheck.fits) {
+    setStatus("Layout exceeds safe print margins. Please adjust the size, layout, or page.");
     return;
   }
+  const pdfDoc = await PDFDocument.create();
   const positions = getPositions(layoutConfig, pageSize.w, pageSize.h, cardSize.w, cardSize.h, layoutKey);
-  const flipAxis = getDuplexFlipAxis(layoutKey);
+  const flipAxis = getDuplexFlipAxis(layoutKey, orientation);
   const backPositions = getMirroredPositions(positions, pageSize.w, pageSize.h, flipAxis);
   const crosshairLength = Number(crosshairLengthInput.value || 50);
   const crosshairStroke = Number(crosshairStrokeInput.value || 3);
@@ -1368,7 +1612,11 @@ async function generatePdf() {
     pageImages.forEach((image, index) => {
       const box = positions[index];
       if (!box) return;
-      drawImageFit(page, image, box);
+      if (cardRotation) {
+        drawImageFitRotated(page, image, box, 90);
+      } else {
+        drawImageFit(page, image, box);
+      }
       if (shouldDrawCornerGuides("front", { duplex })) {
         drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
       }
@@ -1394,7 +1642,11 @@ async function generatePdf() {
           y: box.y + nudgeYPts,
         };
         if (backEmbed) {
-          drawImageFit(backPage, backEmbed, nudgedBox);
+          if (cardRotation) {
+            drawImageFitRotated(backPage, backEmbed, nudgedBox, 90);
+          } else {
+            drawImageFit(backPage, backEmbed, nudgedBox);
+          }
         }
         if (shouldDrawCornerGuides("back", { duplex })) {
           drawCrosshairs(backPage, nudgedBox, crosshairLength, crosshairStroke, crosshairInsetPt);
@@ -1462,6 +1714,33 @@ backFilesInput.addEventListener("change", () => {
   updateSummary();
 });
 
+cardSizeSelect.addEventListener("change", () => {
+  const nextKey = cardSizeSelect.value;
+  if (nextKey === "custom" && previousCardSizeKey !== "custom") {
+    customCardSize = { ...(cardSizes[previousCardSizeKey] || cardSizes.poker) };
+    setCustomInputsFromState();
+  }
+  if (nextKey !== "custom") {
+    previousCardSizeKey = nextKey;
+  }
+  currentPreviewPage = 0;
+  updateCustomSizeUi();
+});
+
+[customCardWidthInput, customCardHeightInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    readCustomSizeInputs();
+    updateSummary();
+    clearTimeout(customInputTimer);
+    customInputTimer = setTimeout(() => {
+      currentPreviewPage = 0;
+      renderPreview().catch((error) => console.error(error));
+      renderThumbnails().catch((error) => console.error(error));
+      updateLayoutUi();
+    }, 120);
+  });
+});
+
 wirePreviewUpdates();
 renderPreview().catch((error) => console.error(error));
 renderThumbnails().catch((error) => console.error(error));
@@ -1472,9 +1751,10 @@ autoLayoutBtn.addEventListener("click", () => {
     setStatus("No layout fits the selected card size.");
     return;
   }
-  layoutSelect.value = choice.layout;
-  pageSizeSelect.value = choice.page;
-  setStatus(`Auto-layout set: ${formatLayoutName(choice.layout)} on ${formatPageName(choice.page)}.`);
+  layoutSelect.value = choice.layoutKey;
+  pageSizeSelect.value = choice.pageKey;
+  currentPreviewPage = 0;
+  setStatus(`Auto-layout set: ${formatLayoutName(choice.layoutKey)} on ${formatPageName(choice.pageKey)} (${formatOrientation(choice.orientation)}).`);
   renderPreview().catch((error) => console.error(error));
   updateLayoutUi();
 });
@@ -1546,9 +1826,13 @@ function updateLayoutUi() {
   } else if (!hasBacks) {
     duplexNote.textContent = "Upload a back image to enable duplex output.";
   } else if (layoutSelect.value === "grid2x3bleed") {
-    duplexNote.textContent = "⚠ Duplex print: flip on the SHORT edge (landscape binding).";
+    const state = getActiveLayoutState();
+    const sheet = state ? formatOrientation(state.orientation).toLowerCase() : "selected";
+    duplexNote.textContent = `⚠ Duplex print: flip on the SHORT edge (${sheet} sheet).`;
   } else {
-    duplexNote.textContent = "⚠ Duplex print: flip on the LONG edge (portrait binding).";
+    const state = getActiveLayoutState();
+    const sheet = state ? formatOrientation(state.orientation).toLowerCase() : "selected";
+    duplexNote.textContent = `⚠ Duplex print: flip on the LONG edge (${sheet} sheet).`;
   }
 }
 
@@ -1579,13 +1863,26 @@ bleedColorPicker.addEventListener("input", () => {
   renderThumbnails().catch((error) => console.error(error));
 });
 
-const savedTheme = localStorage.getItem("pnpfinder-theme");
-if (savedTheme === "dark" || savedTheme === "light") {
-  document.body.dataset.theme = savedTheme;
-  themeToggle.checked = savedTheme === "dark";
-} else {
-  document.body.dataset.theme = "light";
+function applyTheme(theme, persist = false) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = nextTheme;
+  document.documentElement.style.colorScheme = nextTheme;
+  document.body.dataset.theme = nextTheme;
+  themeToggle.setAttribute("aria-label", `Switch to ${nextTheme === "dark" ? "light" : "dark"} mode`);
+  const themeColorMeta = document.getElementById("themeColorMeta");
+  if (themeColorMeta) {
+    themeColorMeta.content = nextTheme === "dark" ? "#090b10" : "#f4f7fb";
+  }
+  if (persist) {
+    try {
+      localStorage.setItem("pnpfinder-theme", nextTheme);
+    } catch (error) {
+      // Appearance still changes when storage is unavailable.
+    }
+  }
 }
+
+applyTheme(document.documentElement.dataset.theme);
 
 previewBackToggle.addEventListener("change", () => {
   storedPreviewBackState = previewBackToggle.checked;
@@ -1637,17 +1934,10 @@ resetNudgeBtn.addEventListener("click", () => {
   renderPreview().catch((error) => console.error(error));
 });
 
-themeToggle.addEventListener("change", () => {
-  const theme = themeToggle.checked ? "dark" : "light";
-  document.body.dataset.theme = theme;
-  localStorage.setItem("pnpfinder-theme", theme);
+themeToggle.addEventListener("click", () => {
+  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(theme, true);
   renderPreview().catch((error) => console.error(error));
-});
-
-unitToggle.addEventListener("change", () => {
-  updateUnitDisplay();
-  renderPreview().catch((error) => console.error(error));
-  renderThumbnails().catch((error) => console.error(error));
 });
 
 applyBackBtn.addEventListener("click", () => {

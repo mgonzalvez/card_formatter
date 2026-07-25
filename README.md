@@ -14,6 +14,9 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
   - Gutterfold (2 columns)
   - Buttonshy Games Style (with bleed)
 - Card sizes: Poker, Square, Bridge, Euro, Mini
+- Custom finished card sizes from **0.5–11.19 in** / **12.7–284.2 mm**, reset on reload.
+- Card images stretch to fill the selected card dimensions without cropping.
+- Custom sizes automatically optimize safe paper orientation, card rotation, rows, and columns for the selected layout and uploaded card count.
 - Duplex printing with mirrored backs (flip edge depends on layout).
 - Auto-rotate landscape inputs to portrait (right edge points upward).
 - Adjustable corner crosshair guides (length, stroke, and color).
@@ -26,6 +29,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
   - `Front only`
   - `Both sides`
 - Live preview with safe-margin overlay, crosshairs, and cut-box overlay for Buttonshy.
+- Buttonshy bleed color can be detected automatically from image edges or set to a custom color.
 - Preview page navigation (`Prev`/`Next`) with page count indicator.
 - Auto-layout helper and image thumbnails.
 - Multiple back images with per-card assignment and batch assignment tools.
@@ -33,15 +37,14 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins, with clickable suggestions for one-click switching.
 - Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator and reset-to-zero control.
-- Light/Dark theme toggle with saved preference.
-- Top nav links for PnPFinder, PnPTools, Prototyper, Extractor, and Launchpad.
-- Footer links for PnPFinder, PnPTools, Prototyper, Extractor, and Launchpad.
+- System-aware Light/Dark theme toggle with saved preference.
+- Compact Related Sites menu for the wider PnP tool ecosystem.
 - Footer includes copyright notice and Ko-fi support link.
 - Cloudflare Web Analytics snippet included.
 
 ## Layout Notes
 - **Traditional card grid**: Portrait page. Duplex flip on **long edge**.
-- **Buttonshy Games Style (with bleed)**: Landscape page. Images are extended by **0.10–0.75" per side** using edge-pixel bleed. Cut guides remain at the original card size. Duplex flip on **short edge**.
+- **Buttonshy Games Style (with bleed)**: Landscape page. Images are extended by **0.10–0.75" per side** with an automatically detected or custom bleed color. Each card has four crosshairs inset to its original card corners; the orange dashed preview box shows the same cut boundary. Duplex flip on **short edge**.
 - **Gutterfold (2 columns)**: Portrait page, landscape cards. Fronts in left column, backs in right column, bottoms toward the center gutter. Includes a dashed fold line. No duplex. Center gutter is adjustable **0.10–0.75"**. Corner guides remain on for the sheet.
 
 ## Back Assignment Workflow
@@ -53,6 +56,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Duplex layouts can print corner guides on the **back only** (default), **front only**, or **both sides**.
 - This control appears only when backs are uploaded for a duplex-capable layout.
 - Front-only jobs and gutterfold sheets always retain corner guides.
+- Each card has its own four corner guides. In Buttonshy layouts, the guides mark the original card boundary inside the bleed.
 
 ## Back Nudge (Optional)
 - Enable when using duplex layouts if you observe front/back drift.
@@ -65,7 +69,8 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 ## Usage
 1. Open `index.html` in a browser.
 2. Upload front images and optional back images.
-3. Choose layout, page size, card size, image fit, and crosshair settings.
+3. Choose layout, page size, card size, and crosshair settings.
+   - For a custom size, enter the finished cut width and height; one size applies to the current image set.
 4. (Optional) Assign backs per front and apply back nudge for duplex tuning.
 5. Preview pages (fronts or backs) as needed.
 6. Export PDF.
@@ -74,8 +79,19 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - `index.html` — UI markup
 - `styles.css` — Visual styling
 - `app.js` — PDF generation + preview logic
+- `layout-engine.js` — Safe custom-size layout and orientation engine
+- `tests/` — Layout and DOM contract tests
 
 ## Changelog
+- Added unit-aware Custom card dimensions with strict safe-margin layout, automatic portrait/landscape selection, optional card rotation, and session-only state.
+- Unified preview, Auto-layout, suggestions, duplex mirroring, and PDF export around the same calculated layout.
+- Added automated coverage for divider sizing, A4/Letter boundaries, Buttonshy bleed, gutterfold, orientation, and duplex behavior.
+- Redesigned the interface to align with BoardSplitter's clean, Apple-like visual system, including system typography, translucent surfaces, a compact sticky header, clearer workflow hierarchy, and responsive two-column workspace.
+- Replaced the old theme switch and individual navigation pills with an icon appearance control and Related Sites menu.
+- Fixed Buttonshy duplex mirroring for landscape short-edge printing and clarified the required flip edge in the UI.
+- Moved Buttonshy crosshairs to each card's original corners inside the bleed and corrected inset-aware guide arm directions.
+- Added automatic or custom Buttonshy bleed color controls.
+- Changed image rendering to stretch-to-fill across all layouts and removed the obsolete image-fit selector.
 - Added Launchpad to footer for nav parity with the top navigation.
 - Added clickable safe-margin suggestions with one-click layout/page switching for unsafe combinations.
 - Added Euro card size (2.32" × 3.62" / 59 × 92 mm).
@@ -88,3 +104,9 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 
 ## Development
 No build step required. This is a static site suitable for GitHub Pages.
+
+Run the tests with:
+
+```sh
+node --test tests/*.test.js
+```

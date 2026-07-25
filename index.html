@@ -3,268 +3,410 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f7fb" id="themeColorMeta" />
   <title>Martin's Card Formatter</title>
+  <script>
+    (() => {
+      let savedTheme = null;
+      try {
+        savedTheme = localStorage.getItem("pnpfinder-theme");
+      } catch (error) {
+        // System appearance remains available when storage is blocked.
+      }
+      const theme = savedTheme === "light" || savedTheme === "dark"
+        ? savedTheme
+        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="page">
-    <div class="top-links">
-      <a class="site-link" href="http://pnpfinder.com" target="_blank" rel="noopener noreferrer">PnPFinder</a>
-      <a class="site-link" href="https://pnptools.gonzhome.us" target="_blank" rel="noopener noreferrer">PnPTools</a>
-      <a class="site-link" href="https://prototyper.gonzhome.us" target="_blank" rel="noopener noreferrer">Prototyper</a>
-      <a class="site-link" href="https://extractor.gonzhome.us" target="_blank" rel="noopener noreferrer">Extractor</a>
-      <a class="site-link" href="https://launchpad.gonzhome.us" target="_blank" rel="noopener noreferrer">Launchpad</a>
-    </div>
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Print-Ready Cards</p>
-        <h1>Martin's Card Formatter</h1>
-        <p class="lede">
-          Upload your card images, pick a layout, and export a duplex-ready PDF with corner
-          crosshair guides, with flexible spacing and page sizes.
-        </p>
+  <header class="app-header">
+    <div class="header-inner">
+      <a class="brand" href="#" aria-label="Card Formatter home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="5" y="3" width="12" height="16" rx="3" />
+            <path d="M9 7h4M9 11h4" stroke-linecap="round" />
+            <path d="M8 21h9a3 3 0 0 0 3-3V7" stroke-linecap="round" />
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>Card Formatter</strong>
+          <span>Print-ready cards, beautifully simple</span>
+        </span>
+      </a>
+
+      <div class="header-actions">
+        <details class="related-sites-menu">
+          <summary class="related-sites-trigger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="2" />
+              <rect x="14" y="3" width="7" height="7" rx="2" />
+              <rect x="3" y="14" width="7" height="7" rx="2" />
+              <rect x="14" y="14" width="7" height="7" rx="2" />
+            </svg>
+            <span class="related-sites-label-full">Related Sites</span>
+            <span class="related-sites-label-short">Sites</span>
+            <svg class="related-sites-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </summary>
+          <nav class="related-sites-panel" aria-label="Related print and play sites">
+            <a href="https://gonzhome.us" target="_blank" rel="noopener noreferrer">Gonzhome</a>
+            <a href="https://pnpfinder.com" target="_blank" rel="noopener noreferrer">PnPFinder</a>
+            <a href="https://pnpdaily.gonzhome.us" target="_blank" rel="noopener noreferrer">PnP Daily</a>
+            <a href="https://launchpad.gonzhome.us" target="_blank" rel="noopener noreferrer">PnP Launchpad</a>
+            <a href="https://pnptools.gonzhome.us" target="_blank" rel="noopener noreferrer">PnPTools</a>
+            <a href="https://prototyper.gonzhome.us" target="_blank" rel="noopener noreferrer">Card Prototyper</a>
+            <a href="https://extractor.gonzhome.us" target="_blank" rel="noopener noreferrer">Card Extractor</a>
+            <a href="https://boardsplitter.gonzhome.us" target="_blank" rel="noopener noreferrer">BoardSplitter</a>
+          </nav>
+        </details>
+
+        <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch appearance" title="Switch appearance">
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5 8.5 8.5 0 1 0 20.5 15.2z" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.5" />
+            <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3l1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3l1.42-1.42" stroke-linecap="round" />
+          </svg>
+        </button>
       </div>
-        <div class="hero-card">
-        <div class="hero-top">
-          <span class="stat">Theme</span>
-          <div class="theme-control">
-            <span class="theme-label">Light</span>
-            <label class="switch theme-switch">
-              <input id="themeToggle" type="checkbox" />
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="welcome-card">
+      <div class="welcome-copy">
+        <span class="eyebrow">Print · cut · play</span>
+        <h1>From card images to formatted print-and-play PDF</h1>
+        <p>Arrange fronts and backs, preview every sheet, and export accurately aligned cards in a few thoughtful steps.</p>
+      </div>
+      <div class="summary-grid" aria-label="Current project summary">
+        <div class="summary-item">
+          <span class="stat" id="summaryLabel1">Layout</span>
+          <strong class="stat-value" id="summaryValue1">Traditional card grid</strong>
+        </div>
+        <div class="summary-item">
+          <span class="stat" id="summaryLabel2">Card size</span>
+          <strong class="stat-value" id="summaryValue2">2.5" × 3.5"</strong>
+        </div>
+        <div class="summary-item">
+          <span class="stat" id="summaryLabel3">Details</span>
+          <strong class="stat-value" id="summaryValue3">Bleed: none · Backs: none</strong>
+        </div>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <aside class="settings-column">
+        <section class="card panel-section upload-section">
+          <div class="section-heading">
+            <span class="step-number">1</span>
+            <div>
+              <h2>Upload files</h2>
+              <p>Add fronts first, then an optional shared or per-card back.</p>
+            </div>
+          </div>
+
+          <div class="input-grid">
+            <label class="upload-box">
+              <input id="frontFiles" type="file" accept="image/png,image/jpeg" multiple />
+              <span class="upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <path d="M12 16V4m0 0L8 8m4-4 4 4" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M20 16v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2" stroke-linecap="round" />
+                </svg>
+              </span>
+              <span class="upload-title">Front images</span>
+              <span class="upload-sub">PNG or JPG · multiple files</span>
+            </label>
+            <label class="upload-box">
+              <input id="backFiles" type="file" accept="image/png,image/jpeg" multiple />
+              <span class="upload-icon upload-icon-secondary" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                  <rect x="5" y="4" width="11" height="15" rx="2.5" />
+                  <path d="M8 21h9a3 3 0 0 0 3-3V8" stroke-linecap="round" />
+                </svg>
+              </span>
+              <span class="upload-title">Back image(s)</span>
+              <span class="upload-sub">One shared back or several to assign</span>
+            </label>
+          </div>
+
+          <div class="notice-row">
+            <span class="notice-icon" aria-hidden="true">i</span>
+            <span class="duplex-note" id="duplexNote">Upload a back image to enable duplex output.</span>
+          </div>
+          <p class="helper">Landscape images rotate automatically with the right edge pointing upward.</p>
+        </section>
+
+        <section class="card panel-section settings-section">
+          <div class="section-heading">
+            <span class="step-number">2</span>
+            <div>
+              <h2>Layout settings</h2>
+              <p>Choose the physical format and cutting-guide details.</p>
+            </div>
+          </div>
+
+          <div class="unit-control">
+            <span>Measurement units</span>
+            <label class="switch">
+              <input id="unitToggle" type="checkbox" />
               <span class="slider"></span>
             </label>
-            <span class="theme-label">Dark</span>
+            <span id="unitLabel">Imperial</span>
           </div>
-        </div>
-        <div>
-          <p class="stat" id="summaryLabel1">Layout</p>
-          <p class="stat-value" id="summaryValue1">Traditional card grid</p>
-        </div>
-          <div>
-            <p class="stat" id="summaryLabel2">Card size</p>
-            <p class="stat-value" id="summaryValue2">2.5" × 3.5"</p>
+
+          <div class="input-row input-row-primary">
+            <label>
+              Card size
+              <select id="cardSizeSelect">
+                <option value="poker">Poker (2.5" × 3.5")</option>
+                <option value="square">Square (2.5" × 2.5")</option>
+                <option value="bridge">Bridge (2.25" × 3.5")</option>
+                <option value="euro">Euro (2.32" × 3.62")</option>
+                <option value="mini">Mini (1.75" × 2.5")</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </label>
+            <label>
+              Output format
+              <select id="layoutSelect">
+                <option value="grid3x3">Traditional card grid</option>
+                <option value="gutterfold">Gutterfold (2 columns)</option>
+                <option value="grid2x3bleed">Buttonshy Games Style (with bleed)</option>
+              </select>
+            </label>
+            <label>
+              Page size
+              <select id="pageSizeSelect">
+                <option value="letter">US Letter</option>
+                <option value="a4">A4</option>
+              </select>
+            </label>
           </div>
-          <div>
-            <p class="stat" id="summaryLabel3">Details</p>
-            <p class="stat-value" id="summaryValue3">Bleed: none · Backs: none</p>
-          </div>
-        </div>
-    </header>
 
-    <main class="panel">
-      <section class="panel-section">
-        <h2>1. Upload Files</h2>
-        <div class="input-grid">
-          <label class="upload-box">
-            <input id="frontFiles" type="file" accept="image/png,image/jpeg" multiple />
-            <span class="upload-title">Front images</span>
-            <span class="upload-sub">PNG or JPG, multiple files.</span>
-          </label>
-          <label class="upload-box">
-            <input id="backFiles" type="file" accept="image/png,image/jpeg" multiple />
-            <span class="upload-title">Back image(s)</span>
-            <span class="upload-sub">Upload 1 for all cards, or multiple to assign per card.</span>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <span class="duplex-note" id="duplexNote">Upload a back image to enable duplex output.</span>
-          <span class="info-badge" title="Flip edge depends on layout. Backs are mirrored to align after printing and flipping.">i</span>
-        </div>
-        <p class="helper">Landscape images are auto-rotated so the card's right edge points upward.</p>
-      </section>
-
-      <section class="panel-section">
-        <h2>2. Layout Settings</h2>
-        <div class="toggle-row">
-          <label class="switch">
-            <input id="unitToggle" type="checkbox" />
-            <span class="slider"></span>
-          </label>
-          <span id="unitLabel">Units: Imperial (inches)</span>
-        </div>
-        <div class="input-row">
-          <label>
-            Card size
-            <select id="cardSizeSelect">
-              <option value="poker">Poker (2.5" × 3.5")</option>
-              <option value="square">Square (2.5" × 2.5")</option>
-              <option value="bridge">Bridge (2.25" × 3.5")</option>
-              <option value="euro">Euro (2.32" × 3.62")</option>
-              <option value="mini">Mini (1.75" × 2.5")</option>
-            </select>
-          </label>
-          <label>
-            Output format
-            <select id="layoutSelect">
-              <option value="grid3x3">Traditional card grid</option>
-              <option value="gutterfold">Gutterfold (2 columns)</option>
-              <option value="grid2x3bleed">Buttonshy Games Style (with bleed)</option>
-            </select>
-          </label>
-          <label>
-            Page size
-            <select id="pageSizeSelect">
-              <option value="letter">US Letter</option>
-              <option value="a4">A4</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="input-row">
-          <label>
-            <span id="gutterLabel">Gutterfold center gutter (in)</span>
-            <input id="gutterInput" type="number" min="0.10" max="0.75" step="0.05" value="0.25" />
-          </label>
-          <label>
-            Crosshair length (px)
-            <input id="crosshairLength" type="number" min="10" max="30" step="1" value="20" />
-          </label>
-          <label>
-            Crosshair stroke (pt)
-            <input id="crosshairStroke" type="number" min="1" max="3" step="0.5" value="1" />
-          </label>
-          <label>
-            Crosshair color
-            <select id="crosshairColor">
-              <option value="black" selected>Black</option>
-              <option value="dark">Dark gray</option>
-              <option value="light">Light gray</option>
-            </select>
-          </label>
-          <label id="cornerGuideModeWrap">
-            Corner guides on
-            <select id="cornerGuideMode">
-              <option value="back" selected>Back only</option>
-              <option value="front">Front only</option>
-              <option value="both">Both sides</option>
-            </select>
-          </label>
-        </div>
-        <p class="helper" id="cornerGuideModeHelper">Choose whether corner cutting guides print on the front pages, back pages, or both. Applies to duplex layouts only.</p>
-        <div class="input-row" id="bleedColorControls" style="display:none;">
-          <label>
-            <span>Bleed area color</span>
-            <div class="bleed-color-row">
-              <label class="bleed-auto-toggle">
-                <input id="bleedAutoColor" type="checkbox" checked />
-                <span>Auto</span>
-              </label>
-              <input id="bleedColorPicker" type="color" value="#ffffff" disabled />
+          <div class="custom-size-panel" id="customSizeControls" hidden>
+            <div class="custom-size-heading">
+              <div>
+                <strong>Custom finished size</strong>
+                <span>One size applies to every image in this session.</span>
+              </div>
+              <span class="custom-size-badge">Custom</span>
             </div>
-          </label>
-        </div>
-        <div class="action-row">
-          <button id="autoLayoutBtn" type="button">Auto-layout</button>
-          <div class="helper">Chooses the best fitting layout and page size.</div>
-        </div>
-        <p class="helper" id="layoutHelper">
-          Note: Buttonshy Games Style uses a landscape page and extends image edges by 0.25\" per side. Cut guides remain at
-          the original card size. Traditional card grid uses a portrait page and flips on the long edge when duplex.
-        </p>
-      </section>
-
-      <section class="panel-section">
-        <h2>3. Preview</h2>
-        <div class="toggle-row">
-          <label class="switch">
-            <input id="previewBackToggle" type="checkbox" />
-            <span class="slider"></span>
-          </label>
-          <span>Preview backs</span>
-          <div class="preview-nav">
-            <button id="previewPrev" type="button">Prev</button>
-            <span id="previewPageIndicator" class="helper">Page 1 of 1</span>
-            <button id="previewNext" type="button">Next</button>
+            <div class="input-row">
+              <label>
+                <span id="customWidthLabel">Width (in)</span>
+                <input id="customCardWidth" type="number" min="0.5" max="11.19" step="0.01" value="2.5" inputmode="decimal" />
+              </label>
+              <label>
+                <span id="customHeightLabel">Height (in)</span>
+                <input id="customCardHeight" type="number" min="0.5" max="11.19" step="0.01" value="3.5" inputmode="decimal" />
+              </label>
+            </div>
+            <p class="custom-size-message" id="customSizeMessage" aria-live="polite"></p>
+            <p class="custom-layout-result" id="customLayoutResult" aria-live="polite"></p>
           </div>
-        </div>
-        <div class="preview-shell">
-          <canvas id="previewCanvas" width="900" height="650"></canvas>
+
+          <div class="settings-divider"></div>
+
+          <div class="input-row compact-fields">
+            <label>
+              <span id="gutterLabel">Gutterfold center gutter (in)</span>
+              <input id="gutterInput" type="number" min="0.10" max="0.75" step="0.05" value="0.25" />
+            </label>
+            <label>
+              Crosshair length
+              <input id="crosshairLength" type="number" min="10" max="30" step="1" value="20" />
+            </label>
+            <label>
+              Crosshair stroke
+              <input id="crosshairStroke" type="number" min="1" max="3" step="0.5" value="1" />
+            </label>
+            <label>
+              Crosshair color
+              <select id="crosshairColor">
+                <option value="black" selected>Black</option>
+                <option value="dark">Dark gray</option>
+                <option value="light">Light gray</option>
+              </select>
+            </label>
+            <label id="cornerGuideModeWrap">
+              Corner guides on
+              <select id="cornerGuideMode">
+                <option value="back" selected>Back only</option>
+                <option value="front">Front only</option>
+                <option value="both">Both sides</option>
+              </select>
+            </label>
+          </div>
+          <p class="helper" id="cornerGuideModeHelper">Choose whether guides print on front pages, back pages, or both.</p>
+
+          <div class="input-row" id="bleedColorControls" style="display:none;">
+            <div class="form-field">
+              <span class="field-label">Bleed area color</span>
+              <div class="bleed-color-row">
+                <label class="bleed-auto-toggle">
+                  <input id="bleedAutoColor" type="checkbox" checked />
+                  <span>Detect automatically</span>
+                </label>
+                <input id="bleedColorPicker" type="color" value="#ffffff" disabled aria-label="Custom bleed color" />
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="autoLayoutBtn" class="button button-secondary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" stroke-linecap="round" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Find best layout
+            </button>
+            <span class="helper">Chooses the best-fitting layout and page size.</span>
+          </div>
+          <p class="helper layout-note" id="layoutHelper">
+            Buttonshy uses landscape pages with adjustable bleed. Traditional grids use portrait pages.
+          </p>
+        </section>
+
+        <section class="card panel-section nudge-section">
+          <div class="section-heading">
+            <span class="step-number">4</span>
+            <div>
+              <h2>Back nudge</h2>
+              <p>Optional printer-specific duplex alignment.</p>
+            </div>
+          </div>
+
+          <div class="setting-toggle-row">
+            <div>
+              <strong>Compensate for printer drift</strong>
+              <span>Apply a measured offset to every back.</span>
+            </div>
+            <label class="switch">
+              <input id="nudgeToggle" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="input-row nudge-row" id="nudgeControls">
+            <label>
+              Horizontal (mm)
+              <input id="nudgeX" type="number" min="-10" max="10" step="0.5" value="0" />
+            </label>
+            <label>
+              Vertical (mm)
+              <input id="nudgeY" type="number" min="-5" max="5" step="0.5" value="0" />
+            </label>
+            <div class="form-field">
+              <span class="field-label">Offsets</span>
+              <button id="resetNudgeBtn" class="button button-secondary" type="button">Reset to zero</button>
+            </div>
+          </div>
+          <p class="helper">Positive X moves right. Positive Y moves up.</p>
+        </section>
+      </aside>
+
+      <div class="content-column">
+        <section class="card panel-section preview-section">
+          <div class="preview-header">
+            <div class="section-heading section-heading-inline">
+              <span class="step-number">3</span>
+              <div>
+                <h2>Preview</h2>
+                <p>What you see is what the PDF will produce.</p>
+              </div>
+            </div>
+            <div class="preview-tools">
+              <label class="inline-toggle">
+                <span>Preview backs</span>
+                <span class="switch">
+                  <input id="previewBackToggle" type="checkbox" />
+                  <span class="slider"></span>
+                </span>
+              </label>
+              <div class="preview-nav" role="group" aria-label="Preview pages">
+                <button id="previewPrev" type="button" aria-label="Previous preview page">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 5-5 5 5 5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+                <span id="previewPageIndicator">Page 1 of 1</span>
+                <button id="previewNext" type="button" aria-label="Next preview page">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="preview-shell">
+            <canvas id="previewCanvas" width="900" height="650"></canvas>
+          </div>
           <div class="preview-meta" id="previewMeta">Preview updates automatically.</div>
-        </div>
-      </section>
+        </section>
 
-      <section class="panel-section">
-        <h2>4. Back Nudge (Optional)</h2>
-        <p class="helper">
-          Use this only if your printer produces front/back misalignment. Print a duplex test page, measure the amount of
-          misalignment, then nudge the entire back layout of your PDF to compensate for the measured drift.
-        </p>
-        <div class="toggle-row">
-          <label class="switch">
-            <input id="nudgeToggle" type="checkbox" />
-            <span class="slider"></span>
-          </label>
-          <span>Enable back nudge</span>
-        </div>
-        <div class="input-row nudge-row" id="nudgeControls">
-          <label>
-            Back nudge X (mm)
-            <input id="nudgeX" type="number" min="-10" max="10" step="0.5" value="0" />
-          </label>
-          <label>
-            Back nudge Y (mm)
-            <input id="nudgeY" type="number" min="-5" max="5" step="0.5" value="0" />
-          </label>
-          <label>
-            Reset
-            <button id="resetNudgeBtn" type="button">Reset to 0</button>
-          </label>
-        </div>
-        <div class="helper">Positive X moves right. Positive Y moves up.</div>
-      </section>
+        <section class="card panel-section thumbnails-section">
+          <div class="section-heading">
+            <span class="step-number">5</span>
+            <div>
+              <h2>Card assignments</h2>
+              <p>Review thumbnails and pair individual fronts with backs.</p>
+            </div>
+          </div>
 
-      <section class="panel-section">
-        <h2>5. Thumbnails</h2>
-        <div class="thumb-toolbar">
-          <label class="thumb-checkbox">
-            <input type="checkbox" id="selectAllFronts" />
-            Select all
-          </label>
-          <span class="thumb-title">Assign selected fronts to back:</span>
-          <select id="batchBackSelect"></select>
-          <button id="applyBackBtn" type="button">Apply</button>
-        </div>
-        <div class="helper" id="backAssignHelper">Upload multiple card backs to enable card back assignments.</div>
-        <div class="thumb-grid" id="frontThumbs"></div>
-        <div class="thumb-grid" id="backThumbs"></div>
-        <div class="helper" id="thumbMeta">Upload images to see thumbnails.</div>
-      </section>
+          <div class="thumb-toolbar">
+            <label class="thumb-checkbox">
+              <input type="checkbox" id="selectAllFronts" />
+              <span>Select all fronts</span>
+            </label>
+            <span class="thumb-title">Assign selected to</span>
+            <select id="batchBackSelect" aria-label="Back to assign"></select>
+            <button id="applyBackBtn" class="button button-secondary" type="button">Apply</button>
+          </div>
+          <p class="helper" id="backAssignHelper">Upload multiple card backs to enable individual assignments.</p>
+          <div class="thumb-grid" id="frontThumbs"></div>
+          <div class="thumb-grid" id="backThumbs"></div>
+          <div class="helper" id="thumbMeta">Upload images to see thumbnails.</div>
+        </section>
 
-      <section class="panel-section">
-        <h2 id="exportHeading">6. Export</h2>
-        <div class="action-row">
-          <button id="generateBtn">Generate PDF</button>
-          <div class="status" id="status">Waiting for files…</div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <p>Tip: Use consistently sized front images for best alignment.</p>
-      <div class="footer-links">
-        <a class="footer-link" href="http://pnpfinder.com" target="_blank" rel="noopener noreferrer">PnPFinder</a>
-        <a class="footer-link" href="https://pnptools.gonzhome.us" target="_blank" rel="noopener noreferrer">PnPTools</a>
-        <a class="footer-link" href="https://prototyper.gonzhome.us" target="_blank" rel="noopener noreferrer">Prototyper</a>
-        <a class="footer-link" href="https://extractor.gonzhome.us" target="_blank" rel="noopener noreferrer">Extractor</a>
-        <a class="footer-link" href="https://launchpad.gonzhome.us" target="_blank" rel="noopener noreferrer">Launchpad</a>
+        <section class="card export-section">
+          <div class="export-copy">
+            <span class="step-number">6</span>
+            <div>
+              <h2 id="exportHeading">Export</h2>
+              <div class="status" id="status">Waiting for files…</div>
+            </div>
+          </div>
+          <button id="generateBtn" class="button button-primary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <path d="m7 10 5 5 5-5M12 15V3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Generate PDF
+          </button>
+        </section>
       </div>
-      <p>&copy; 2026 Rights owned by <a href="mailto:help@pnpfinder.com?subject=Card%20Formatter%20feedback">Martin Gonzalvez</a>.</p>
-      <p class="support-line">
-        Like this tool? Why not buy me a coffee?
-        <a class="support-link" href="https://ko-fi.com/marting" target="_blank" rel="noopener noreferrer">
-          <span aria-hidden="true">☕</span>
-          Ko-fi
-        </a>
-      </p>
-    </footer>
-  </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>Card Formatter — thoughtfully made for print &amp; play creators.</p>
+    <p>
+      Copyright 2026 by
+      <a href="mailto:help@pnpfinder.com?subject=Card%20Formatter%20feedback">Martin Gonzalvez</a>.
+      If this tool helps, <a href="https://ko-fi.com/marting" target="_blank" rel="noopener noreferrer">buy me a coffee</a>.
+    </p>
+  </footer>
 
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="layout-engine.js"></script>
   <script src="app.js"></script>
-  <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "da1e779dd8df452f8f338b5277ec0f09"}'></script><!-- End Cloudflare Web Analytics -->
+  <!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"da1e779dd8df452f8f338b5277ec0f09"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
