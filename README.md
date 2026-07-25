@@ -18,7 +18,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Card images stretch to fill the selected card dimensions without cropping.
 - Custom sizes automatically optimize safe paper orientation, card rotation, rows, and columns for the selected layout and uploaded card count.
 - Duplex printing with mirrored backs (flip edge depends on layout).
-- Auto-rotate landscape inputs to portrait (right edge points upward).
+- Target-aware image rotation: source artwork is rotated only when its orientation differs from the selected finished card dimensions.
 - Adjustable corner crosshair guides (length, stroke, and color).
 - Crosshair ranges:
   - Length `10-30 px` (default `20`)
@@ -43,9 +43,11 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Cloudflare Web Analytics snippet included.
 
 ## Layout Notes
-- **Traditional card grid**: Portrait page. Duplex flip on **long edge**.
-- **Buttonshy Games Style (with bleed)**: Landscape page. Images are extended by **0.10–0.75" per side** with an automatically detected or custom bleed color. Each card has four crosshairs inset to its original card corners; the orange dashed preview box shows the same cut boundary. Duplex flip on **short edge**.
-- **Gutterfold (2 columns)**: Portrait page, landscape cards. Fronts in left column, backs in right column, bottoms toward the center gutter. Includes a dashed fold line. No duplex. Center gutter is adjustable **0.10–0.75"**. Corner guides remain on for the sheet.
+- **Traditional card grid**: Presets use a portrait page. Custom sizes compare portrait/landscape paper and permitted card rotation. Duplex printing uses the **long edge**.
+- **Buttonshy Games Style (with bleed)**: Presets use a landscape page; custom sizes optimize orientation. Images are extended by **0.10–0.75" per side** with an automatically detected or custom bleed color. Each card has four crosshairs inset to its original card corners; the orange dashed preview box shows the same cut boundary. Duplex printing uses the **short edge**.
+- **Gutterfold (2 columns)**: Fronts and backs share one sheet and face the center gutter. Custom sizes compare paper orientations while preserving the inward-facing rotation. Includes a dashed fold line and no duplex flip. Center gutter is adjustable **0.10–0.75"**.
+
+For duplex layouts, the app derives horizontal or vertical back mirroring from the selected paper orientation while retaining the required long-edge or short-edge printer setting.
 
 ## Back Assignment Workflow
 - Upload **one back** to apply it to all fronts automatically.
@@ -92,11 +94,10 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Moved Buttonshy crosshairs to each card's original corners inside the bleed and corrected inset-aware guide arm directions.
 - Added automatic or custom Buttonshy bleed color controls.
 - Changed image rendering to stretch-to-fill across all layouts and removed the obsolete image-fit selector.
-- Added Launchpad to footer for nav parity with the top navigation.
 - Added clickable safe-margin suggestions with one-click layout/page switching for unsafe combinations.
 - Added Euro card size (2.32" × 3.62" / 59 × 92 mm).
 - Added duplex-only corner guide placement control with `Back only` as the default.
-- Added ecosystem nav links, footer support/contact links, and Cloudflare analytics.
+- Added the Related Sites ecosystem menu, footer support/contact links, and Cloudflare analytics.
 - Added theme toggle with saved preference and responsive desktop/tablet/phone layout.
 - Added back nudge controls with preview indicator and reset-to-zero workflow.
 - Added per-card back assignment, batch assignment tools, and automatic single-back behavior.
