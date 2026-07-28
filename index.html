@@ -217,49 +217,72 @@
 
           <div class="settings-divider"></div>
 
-          <div class="input-row compact-fields">
-            <label>
-              <span id="gutterLabel">Gutterfold center gutter (in)</span>
-              <input id="gutterInput" type="number" min="0.10" max="0.75" step="0.05" value="0.25" />
-            </label>
-            <label>
-              Crosshair length
-              <input id="crosshairLength" type="number" min="10" max="30" step="1" value="20" />
-            </label>
-            <label>
-              Crosshair stroke
-              <input id="crosshairStroke" type="number" min="1" max="3" step="0.5" value="1" />
-            </label>
-            <label>
-              Crosshair color
-              <select id="crosshairColor">
-                <option value="black" selected>Black</option>
-                <option value="dark">Dark gray</option>
-                <option value="light">Light gray</option>
-              </select>
-            </label>
-            <label id="cornerGuideModeWrap">
-              Corner guides on
-              <select id="cornerGuideMode">
-                <option value="back" selected>Back only</option>
-                <option value="front">Front only</option>
-                <option value="both">Both sides</option>
-              </select>
-            </label>
-          </div>
-          <p class="helper" id="cornerGuideModeHelper">Choose whether guides print on front pages, back pages, or both.</p>
-
-          <div class="input-row" id="bleedColorControls" style="display:none;">
-            <div class="form-field">
-              <span class="field-label">Bleed area color</span>
-              <div class="bleed-color-row">
-                <label class="bleed-auto-toggle">
-                  <input id="bleedAutoColor" type="checkbox" checked />
-                  <span>Detect automatically</span>
-                </label>
-                <input id="bleedColorPicker" type="color" value="#ffffff" disabled aria-label="Custom bleed color" />
+          <div class="control-group layout-specific-controls">
+            <div class="control-group-heading">
+              <h3>Layout-specific controls</h3>
+              <p>Gutterfold and Buttonshy settings appear here.</p>
+            </div>
+            <div class="input-row compact-fields">
+              <label>
+                <span id="gutterLabel">Gutterfold center gutter (in)</span>
+                <input id="gutterInput" type="number" min="0.10" max="0.75" step="0.05" value="0.25" />
+              </label>
+            </div>
+            <div class="input-row" id="bleedColorControls" style="display:none;">
+              <div class="form-field">
+                <span class="field-label">Bleed area color</span>
+                <div class="bleed-color-row">
+                  <label class="bleed-auto-toggle">
+                    <input id="bleedAutoColor" type="checkbox" checked />
+                    <span>Detect automatically</span>
+                  </label>
+                  <input id="bleedColorPicker" type="color" value="#ffffff" disabled aria-label="Custom bleed color" />
+                </div>
               </div>
             </div>
+          </div>
+
+          <div class="control-group crosshair-controls">
+            <div class="control-group-heading">
+              <h3>Corner crosshair guides</h3>
+              <p>These controls apply to every output layout.</p>
+            </div>
+            <div class="input-row compact-fields">
+              <label>
+                Crosshair length
+                <input id="crosshairLength" type="number" min="10" max="30" step="1" value="20" />
+              </label>
+              <label>
+                Crosshair stroke
+                <input id="crosshairStroke" type="number" min="1" max="3" step="0.5" value="1" />
+              </label>
+              <label>
+                Crosshair color
+                <select id="crosshairColor">
+                  <option value="black" selected>Black</option>
+                  <option value="dark">Dark gray</option>
+                  <option value="light">Light gray</option>
+                </select>
+              </label>
+              <label>
+                Crosshair opacity
+                <select id="crosshairOpacity">
+                  <option value="1" selected>100%</option>
+                  <option value="0.75">75%</option>
+                  <option value="0.5">50%</option>
+                  <option value="0.25">25%</option>
+                </select>
+              </label>
+              <label id="cornerGuideModeWrap">
+                Corner guides on
+                <select id="cornerGuideMode">
+                  <option value="back" selected>Back only</option>
+                  <option value="front">Front only</option>
+                  <option value="both">Both sides</option>
+                </select>
+              </label>
+            </div>
+            <p class="helper" id="cornerGuideModeHelper">Choose whether guides print on front pages, back pages, or both.</p>
           </div>
 
           <div class="action-row">

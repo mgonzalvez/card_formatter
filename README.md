@@ -19,11 +19,12 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Custom sizes automatically optimize safe paper orientation, card rotation, rows, and columns for the selected layout and uploaded card count.
 - Duplex printing with mirrored backs (flip edge depends on layout).
 - Target-aware image rotation: source artwork is rotated only when its orientation differs from the selected finished card dimensions.
-- Adjustable corner crosshair guides (length, stroke, and color).
+- Adjustable solid corner crosshair guides (length, stroke, color, and opacity).
 - Crosshair ranges:
   - Length `10-30 px` (default `20`)
   - Stroke `1-3 pt` (default `1`)
-  - Colors: black, dark gray, light gray
+- Colors: black, dark gray, light gray
+- Opacity: 25%, 50%, 75%, or 100%
 - Duplex-only guide placement control:
   - `Back only` (default)
   - `Front only`
@@ -36,6 +37,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Metric/imperial unit toggle with dynamic labels.
 - Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins, with clickable suggestions for one-click switching.
+- Output filenames include the resolved grid (for example, `card-output-grid4x4.pdf`).
 - Optional **Back Nudge** (mm) to compensate for duplex printer drift, with preview indicator and reset-to-zero control.
 - System-aware Light/Dark theme toggle with saved preference.
 - Compact Related Sites menu for the wider PnP tool ecosystem.

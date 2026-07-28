@@ -28,3 +28,10 @@ test("defines the custom option and agreed dimension constraints", () => {
   assert.match(html, /id="customCardWidth"[^>]+min="0\.5"[^>]+max="11\.19"/);
   assert.match(html, /id="customCardHeight"[^>]+min="0\.5"[^>]+max="11\.19"/);
 });
+
+test("offers crosshair opacity and derives output filenames from the resolved grid", () => {
+  assert.match(html, /id="crosshairOpacity"/);
+  assert.match(app, /function getOutputFilename\(layoutKey, layoutConfig\)/);
+  assert.match(app, /card-output-grid\$\{grid\}\.pdf/);
+  assert.match(app, /link\.download = getOutputFilename\(layoutKey, layoutConfig\)/);
+});
