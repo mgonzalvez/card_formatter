@@ -34,6 +34,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Preview page navigation (`Prev`/`Next`) with page count indicator.
 - Auto-layout helper and image thumbnails.
 - Multiple back images with per-card assignment and batch assignment tools.
+- Numbered `Back N` badges on back thumbnails and drag-and-drop assignment: drag a back thumbnail onto a front thumbnail to assign it.
 - Metric/imperial unit toggle with dynamic labels.
 - Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins, with clickable suggestions for one-click switching.
@@ -54,6 +55,8 @@ For duplex layouts, the app derives horizontal or vertical back mirroring from t
 ## Back Assignment Workflow
 - Upload **one back** to apply it to all fronts automatically.
 - Upload **multiple backs** to enable per-card assignment in the thumbnails section.
+- Back thumbnails show numbered badges (`Back 1`, `Back 2`, …) matching the dropdown labels.
+- Drag a back thumbnail onto a front thumbnail to assign it (when multiple backs are uploaded).
 - Use the **Select all** checkbox and batch selector to assign a back to multiple cards at once.
 
 ## Corner Guide Placement
