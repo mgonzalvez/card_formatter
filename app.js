@@ -1061,6 +1061,31 @@ async function renderThumbnails() {
 
       wrapper.appendChild(controls);
     }
+    if (backCount > 1) {
+      wrapper.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const payload = event.dataTransfer.getData("text/plain");
+        if (/^\d+$/.test(payload)) {
+          wrapper.classList.add("is-dropping");
+        }
+      });
+      wrapper.addEventListener("dragleave", (event) => {
+        event.preventDefault();
+        wrapper.classList.remove("is-dropping");
+      });
+      wrapper.addEventListener("drop", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        wrapper.classList.remove("is-dropping");
+        const backIndex = Number(event.dataTransfer.getData("text/plain"));
+        if (Number.isInteger(backIndex) && backIndex >= 0 && backIndex < backCount) {
+          backAssignments[index] = backIndex;
+          renderPreview().catch((error) => console.error(error));
+          renderThumbnails().catch((error) => console.error(error));
+        }
+      });
+    }
     frontThumbs.appendChild(wrapper);
   });
 
@@ -1073,10 +1098,21 @@ async function renderThumbnails() {
       wrapper.className = "thumb";
       const image = document.createElement("img");
       image.src = img.src;
+      const badge = document.createElement("span");
+      badge.className = "thumb-badge";
+      badge.textContent = `Back ${index + 1}`;
       const label = document.createElement("span");
       label.textContent = backList[index]?.name || `Back ${index + 1}`;
       wrapper.appendChild(image);
+      wrapper.appendChild(badge);
       wrapper.appendChild(label);
+      if (backCount > 1) {
+        wrapper.draggable = true;
+        wrapper.addEventListener("dragstart", (event) => {
+          event.dataTransfer.setData("text/plain", String(index));
+          event.dataTransfer.effectAllowed = "copy";
+        });
+      }
       backThumbs.appendChild(wrapper);
     });
   }
@@ -1085,6 +1121,9 @@ async function renderThumbnails() {
     thumbMeta.textContent = "Upload images to see thumbnails.";
   } else {
     thumbMeta.textContent = `${frontFiles.length} front image(s), ${backCount} back image(s) loaded.`;
+  }
+  if (backCount > 1) {
+    thumbMeta.textContent += " Drag a back thumbnail onto a front to assign it.";
   }
 
   batchBackSelect.innerHTML = "";
