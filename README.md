@@ -35,6 +35,7 @@ A static, browser-based utility for turning card images into print-ready PDFs wi
 - Auto-layout helper and image thumbnails.
 - Multiple back images with per-card assignment and batch assignment tools.
 - Numbered `Back N` badges on back thumbnails and drag-and-drop assignment: drag a back thumbnail onto a front thumbnail to assign it.
+- Back pairing editor: when multiple backs are uploaded, click "Edit back pairs" to open a visual editor showing each card's front and assigned back side by side, with dropdowns to reassign backs and rotation buttons (0°/90°/180°/270°) to adjust back orientation. Canvas preview shows a `Back N` badge on each card while the editor is open.
 - Metric/imperial unit toggle with dynamic labels.
 - Adaptive layout summary panel and format-aware export header.
 - Safe-print guardrails: hard block export if layout exceeds safe margins, with clickable suggestions for one-click switching.
@@ -58,6 +59,7 @@ For duplex layouts, the app derives horizontal or vertical back mirroring from t
 - Back thumbnails show numbered badges (`Back 1`, `Back 2`, …) matching the dropdown labels.
 - Drag a back thumbnail onto a front thumbnail to assign it (when multiple backs are uploaded).
 - Use the **Select all** checkbox and batch selector to assign a back to multiple cards at once.
+- Click **Edit back pairs** in the preview toolbar to open the pairing editor: a table showing each card with its front thumbnail, assigned back thumbnail, back assignment dropdown, and rotation controls (0°/90°/180°/270°). Changes apply instantly to the preview and export.
 
 ## Corner Guide Placement
 - Duplex layouts can print corner guides on the **back only** (default), **front only**, or **both sides**.
@@ -90,6 +92,7 @@ For duplex layouts, the app derives horizontal or vertical back mirroring from t
 - `tests/` — Layout and DOM contract tests
 
 ## Changelog
+- Added back pairing editor: visual per-card front-back preview with reassignment dropdowns and rotation controls (0°/90°/180°/270°), visible only when multiple backs are uploaded.
 - Added unit-aware Custom card dimensions with strict safe-margin layout, automatic portrait/landscape selection, optional card rotation, and session-only state.
 - Unified preview, Auto-layout, suggestions, duplex mirroring, and PDF export around the same calculated layout.
 - Added automated coverage for divider sizing, A4/Letter boundaries, Buttonshy bleed, gutterfold, orientation, and duplex behavior.
