@@ -51,6 +51,9 @@ const duplexNote = document.getElementById("duplexNote");
 const bleedColorControls = document.getElementById("bleedColorControls");
 const bleedAutoColor = document.getElementById("bleedAutoColor");
 const bleedColorPicker = document.getElementById("bleedColorPicker");
+const backPairingToggle = document.getElementById("backPairingToggle");
+const pairingEditor = document.getElementById("pairingEditor");
+const pairingGrid = document.getElementById("pairingGrid");
 const customSizeControls = document.getElementById("customSizeControls");
 const customCardWidthInput = document.getElementById("customCardWidth");
 const customCardHeightInput = document.getElementById("customCardHeight");
@@ -60,6 +63,8 @@ const customSizeMessage = document.getElementById("customSizeMessage");
 const customLayoutResult = document.getElementById("customLayoutResult");
 let storedPreviewBackState = previewBackToggle.checked;
 let backAssignments = [];
+let backRotations = [];
+let backPairingMode = false;
 let lastUnitMetric = false;
 let currentPreviewPage = 0;
 let customBleedColor = null; // {r, g, b} or null for auto
@@ -865,10 +870,12 @@ function getBackFiles() {
 function normalizeAssignments(frontCount, backCount) {
   if (backCount === 0) {
     backAssignments = [];
+    backRotations = [];
     return;
   }
   if (backCount === 1) {
     backAssignments = Array(frontCount).fill(0);
+    backRotations = Array(frontCount).fill(0);
     return;
   }
   if (backAssignments.length !== frontCount) {
@@ -879,15 +886,23 @@ function normalizeAssignments(frontCount, backCount) {
       }
     });
     backAssignments = next;
+    backRotations = Array(frontCount).fill(0);
     return;
   }
   backAssignments = backAssignments.map((value) => Math.min(value, backCount - 1));
+  if (backRotations.length !== frontCount) {
+    backRotations = Array(frontCount).fill(0);
+  }
 }
 
 function getAssignedBackIndex(cardIndex, backCount) {
   if (backCount === 0) return null;
   if (backCount === 1) return 0;
   return backAssignments[cardIndex] ?? 0;
+}
+
+function getBackRotation(cardIndex) {
+  return backRotations[cardIndex] ?? 0;
 }
 
 function layoutFits(pageSize, layoutConfig, cardSize) {
@@ -1151,6 +1166,100 @@ async function renderThumbnails() {
   }
 }
 
+async function renderPairingEditor() {
+  const frontFiles = Array.from(frontFilesInput.files || []);
+  const backFiles = getBackFiles();
+  const backCount = backFiles.length;
+
+  if (!backPairingMode || backCount <= 1 || frontFiles.length === 0) {
+    pairingEditor.hidden = true;
+    return;
+  }
+
+  pairingEditor.hidden = false;
+  pairingGrid.innerHTML = "";
+
+  const bleedIn = layoutSelect.value === "grid2x3bleed" ? getBleedValueInInches() : 0;
+  const cardSizeInches = getCardSizeInches();
+
+  const frontImages = await loadPreviewImages(frontFiles, { bleedIn, cardSizeInches, overrideColor: customBleedColor });
+  const backImages = await loadPreviewImages(backFiles, { bleedIn, cardSizeInches, overrideColor: customBleedColor });
+
+  frontFiles.forEach((file, index) => {
+    const row = document.createElement("div");
+    row.className = "pairing-row";
+
+    const cardNum = document.createElement("span");
+    cardNum.className = "pairing-card-num";
+    cardNum.textContent = `Card ${index + 1}`;
+
+    const frontThumb = document.createElement("div");
+    frontThumb.className = "pairing-thumb pairing-thumb-front";
+    const frontImg = document.createElement("img");
+    frontImg.src = frontImages[index]?.src || "";
+    frontThumb.appendChild(frontImg);
+
+    const arrow = document.createElement("span");
+    arrow.className = "pairing-arrow";
+    arrow.textContent = "→";
+
+    const backSelect = document.createElement("select");
+    backSelect.className = "pairing-back-select";
+    backSelect.dataset.index = String(index);
+    backFiles.forEach((bf, bi) => {
+      const option = document.createElement("option");
+      option.value = String(bi);
+      option.textContent = `Back ${bi + 1}`;
+      backSelect.appendChild(option);
+    });
+    backSelect.value = String(getAssignedBackIndex(index, backCount));
+    backSelect.addEventListener("change", (event) => {
+      backAssignments[index] = Number(event.target.value);
+      renderPreview().catch((e) => console.error(e));
+      renderThumbnails().catch((e) => console.error(e));
+    });
+
+    const backThumb = document.createElement("div");
+    backThumb.className = "pairing-thumb pairing-thumb-back";
+    const backImg = document.createElement("img");
+    const assignedBackIdx = getAssignedBackIndex(index, backCount);
+    backImg.src = backImages[assignedBackIdx]?.src || "";
+    backThumb.appendChild(backImg);
+
+    const rotGroup = document.createElement("div");
+    rotGroup.className = "pairing-rot-group";
+    const rotLabel = document.createElement("span");
+    rotLabel.className = "pairing-rot-label";
+    rotLabel.textContent = "Rot:";
+
+    const rotBtns = document.createElement("div");
+    rotBtns.className = "pairing-rot-btns";
+    [0, 90, 180, 270].forEach((deg) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pairing-rot-btn" + (getBackRotation(index) === deg ? " is-active" : "");
+      btn.textContent = `${deg}°`;
+      btn.addEventListener("click", () => {
+        backRotations[index] = deg;
+        renderPreview().catch((e) => console.error(e));
+        renderPairingEditor().catch((e) => console.error(e));
+      });
+      rotBtns.appendChild(btn);
+    });
+
+    rotGroup.appendChild(rotLabel);
+    rotGroup.appendChild(rotBtns);
+
+    row.appendChild(cardNum);
+    row.appendChild(frontThumb);
+    row.appendChild(arrow);
+    row.appendChild(backSelect);
+    row.appendChild(backThumb);
+    row.appendChild(rotGroup);
+    pairingGrid.appendChild(row);
+  });
+}
+
 async function renderPreview() {
   const frontFiles = Array.from(frontFilesInput.files || []);
   const layoutKey = layoutSelect.value;
@@ -1389,12 +1498,24 @@ async function renderPreview() {
 
       const globalIndex = pageStart + index;
       const backIndex = getAssignedBackIndex(globalIndex, backCount);
+      const backRot = getBackRotation(globalIndex);
       const img = backIndex !== null ? backImagesGutter[backIndex] : null;
       if (img) {
         ctx.save();
         ctx.translate(x, y + h);
         ctx.rotate(-Math.PI / 2);
-        ctx.drawImage(img, 0, 0, h, w);
+        if (backRot === 90) {
+          ctx.rotate(Math.PI / 2);
+          ctx.drawImage(img, 0, 0, h, w);
+        } else if (backRot === 180) {
+          ctx.rotate(Math.PI);
+          ctx.drawImage(img, 0, 0, w, h);
+        } else if (backRot === 270) {
+          ctx.rotate(-Math.PI / 2);
+          ctx.drawImage(img, 0, 0, h, w);
+        } else {
+          ctx.drawImage(img, 0, 0, w, h);
+        }
         ctx.restore();
       } else {
         ctx.fillStyle = "#f3ebe0";
@@ -1471,7 +1592,9 @@ async function renderPreview() {
 
     const img = cardImages[index];
     if (img) {
-      drawPreviewImage(ctx, img, x, y, w, h, cardRotation ? 90 : 0);
+      const backRot = previewBack ? getBackRotation(pageStart + index) : 0;
+      const rot = cardRotation ? 90 : backRot;
+      drawPreviewImage(ctx, img, x, y, w, h, rot);
     } else {
       ctx.fillStyle = "#f3ebe0";
       ctx.fillRect(x, y, w, h);
@@ -1490,6 +1613,20 @@ async function renderPreview() {
     const previewSide = previewBack ? "back" : "front";
     if (shouldDrawCornerGuides(previewSide, { duplex: duplexEnabled })) {
       drawPreviewCrosshairs(ctx, x, y, w, h, crosshairLength, crosshairStroke, crosshairInsetPt * scale);
+    }
+
+    if (backPairingMode && previewBack && backCount > 1) {
+      const assignedBackIdx = getAssignedBackIndex(pageStart + index, backCount);
+      ctx.save();
+      ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
+      ctx.beginPath();
+      ctx.roundRect(x + 4, y + 4, 44, 18, 4);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "600 11px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(`Back ${assignedBackIdx + 1}`, x + 9, y + 17);
+      ctx.restore();
     }
   });
 
@@ -1636,7 +1773,16 @@ async function generatePdf() {
         const backIndex = getAssignedBackIndex(globalIndex, backCount);
         const backEmbed = backIndex !== null ? backEmbeds[backIndex] : null;
         if (backEmbed) {
-          drawImageFitRotated(page, backEmbed, box, 270);
+          const backRot = getBackRotation(globalIndex);
+          if (backRot === 90) {
+            drawImageFitRotated(page, backEmbed, box, 90);
+          } else if (backRot === 180) {
+            drawImageFitRotated(page, backEmbed, box, 180);
+          } else if (backRot === 270) {
+            drawImageFitRotated(page, backEmbed, box, 270);
+          } else {
+            drawImageFitRotated(page, backEmbed, box, 270);
+          }
         }
         if (shouldDrawCornerGuides("back", { gutterfold: true })) {
           drawCrosshairs(page, box, crosshairLength, crosshairStroke, crosshairInsetPt);
@@ -1694,8 +1840,15 @@ async function generatePdf() {
           y: box.y + nudgeYPts,
         };
         if (backEmbed) {
+          const backRot = getBackRotation(globalIndex);
           if (cardRotation) {
             drawImageFitRotated(backPage, backEmbed, nudgedBox, 90);
+          } else if (backRot === 90) {
+            drawImageFitRotated(backPage, backEmbed, nudgedBox, 90);
+          } else if (backRot === 180) {
+            drawImageFitRotated(backPage, backEmbed, nudgedBox, 180);
+          } else if (backRot === 270) {
+            drawImageFitRotated(backPage, backEmbed, nudgedBox, 270);
           } else {
             drawImageFit(backPage, backEmbed, nudgedBox);
           }
@@ -1765,6 +1918,7 @@ backFilesInput.addEventListener("change", () => {
   }
   updateLayoutUi();
   updateSummary();
+  renderPairingEditor().catch((error) => console.error(error));
 });
 
 cardSizeSelect.addEventListener("change", () => {
@@ -1794,9 +1948,10 @@ cardSizeSelect.addEventListener("change", () => {
   });
 });
 
-wirePreviewUpdates();
-renderPreview().catch((error) => console.error(error));
-renderThumbnails().catch((error) => console.error(error));
+  wirePreviewUpdates();
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
+  renderPairingEditor().catch((error) => console.error(error));
 
 autoLayoutBtn.addEventListener("click", () => {
   const choice = pickAutoLayout();
@@ -1857,6 +2012,16 @@ function updateLayoutUi() {
   cornerGuideModeHelper.style.display = duplexOutput ? "block" : "none";
   if (!duplexOutput) {
     cornerGuideModeSelect.value = "back";
+  }
+
+  const multiBack = backFiles.length > 1;
+  backPairingToggle.style.display = multiBack ? "" : "none";
+  backPairingToggle.disabled = gutterfold || !hasBacks;
+  if (multiBack && !gutterfold && hasBacks) {
+    pairingEditor.hidden = !backPairingMode;
+  } else {
+    pairingEditor.hidden = true;
+    backPairingMode = false;
   }
 
   previewBackToggle.disabled = gutterfold || !hasBacks || (nudgeActive && hasBacks && !gutterfold);
@@ -1940,6 +2105,13 @@ applyTheme(document.documentElement.dataset.theme);
 previewBackToggle.addEventListener("change", () => {
   storedPreviewBackState = previewBackToggle.checked;
   renderPreview().catch((error) => console.error(error));
+});
+
+backPairingToggle.addEventListener("click", () => {
+  backPairingMode = !backPairingMode;
+  backPairingToggle.classList.toggle("is-active", backPairingMode);
+  backPairingToggle.setAttribute("aria-pressed", String(backPairingMode));
+  renderPairingEditor().catch((error) => console.error(error));
 });
 
 function updateNudgeUi() {

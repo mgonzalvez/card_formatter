@@ -348,30 +348,44 @@
                 <p>What you see is what the PDF will produce.</p>
               </div>
             </div>
-            <div class="preview-tools">
-              <label class="inline-toggle">
-                <span>Preview backs</span>
-                <span class="switch">
-                  <input id="previewBackToggle" type="checkbox" />
-                  <span class="slider"></span>
-                </span>
-              </label>
-              <div class="preview-nav" role="group" aria-label="Preview pages">
-                <button id="previewPrev" type="button" aria-label="Previous preview page">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 5-5 5 5 5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <div class="preview-tools">
+                <label class="inline-toggle">
+                  <span>Preview backs</span>
+                  <span class="switch">
+                    <input id="previewBackToggle" type="checkbox" />
+                    <span class="slider"></span>
+                  </span>
+                </label>
+                <button id="backPairingToggle" class="button button-secondary" type="button" style="display:none;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <rect x="5" y="4" width="11" height="15" rx="2.5" />
+                    <path d="M8 21h9a3 3 0 0 0 3-3V8" stroke-linecap="round" />
+                  </svg>
+                  Edit back pairs
                 </button>
-                <span id="previewPageIndicator">Page 1 of 1</span>
-                <button id="previewNext" type="button" aria-label="Next preview page">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                </button>
+                <div class="preview-nav" role="group" aria-label="Preview pages">
+                  <button id="previewPrev" type="button" aria-label="Previous preview page">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 5-5 5 5 5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                  </button>
+                  <span id="previewPageIndicator">Page 1 of 1</span>
+                  <button id="previewNext" type="button" aria-label="Next preview page">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                  </button>
+                </div>
               </div>
-            </div>
           </div>
 
           <div class="preview-shell">
             <canvas id="previewCanvas" width="900" height="650"></canvas>
           </div>
           <div class="preview-meta" id="previewMeta">Preview updates automatically.</div>
+          <div class="pairing-editor" id="pairingEditor" hidden>
+            <div class="pairing-editor-header">
+              <strong>Back pairing editor</strong>
+              <span class="helper">Click a back thumbnail to change its assignment. Use rotation buttons to adjust orientation.</span>
+            </div>
+            <div class="pairing-grid" id="pairingGrid"></div>
+          </div>
         </section>
 
         <section class="card panel-section thumbnails-section">
