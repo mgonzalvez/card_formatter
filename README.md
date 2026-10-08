@@ -110,6 +110,8 @@ For duplex layouts, the app derives horizontal or vertical back mirroring from t
 - Added back nudge controls with preview indicator and reset-to-zero workflow.
 - Added per-card back assignment, batch assignment tools, and automatic single-back behavior.
 - Added safe-margin overlay, hard export guardrails, auto-rotation, and preview crosshairs/Buttonshy cut-box support.
+- Added preset save/restore: all settings auto-saved to localStorage on every change, restored on page load, with "Reset to defaults" button.
+- Added page count estimate: new "Pages" summary item showing sheet/page count, accounting for gutterfold (backs included) and duplex (front+back sheets).
 
 ## Development
 No build step required. This is a static site suitable for GitHub Pages.
