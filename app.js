@@ -45,6 +45,8 @@ const summaryLabel2 = document.getElementById("summaryLabel2");
 const summaryValue2 = document.getElementById("summaryValue2");
 const summaryLabel3 = document.getElementById("summaryLabel3");
 const summaryValue3 = document.getElementById("summaryValue3");
+const summaryLabel4 = document.getElementById("summaryLabel4");
+const summaryValue4 = document.getElementById("summaryValue4");
 const gutterLabel = document.getElementById("gutterLabel");
 const exportHeading = document.getElementById("exportHeading");
 const duplexNote = document.getElementById("duplexNote");
@@ -53,6 +55,7 @@ const bleedAutoColor = document.getElementById("bleedAutoColor");
 const bleedColorPicker = document.getElementById("bleedColorPicker");
 const backPairingToggle = document.getElementById("backPairingToggle");
 const pairingEditor = document.getElementById("pairingEditor");
+const resetPresetBtn = document.getElementById("resetPresetBtn");
 const pairingGrid = document.getElementById("pairingGrid");
 const customSizeControls = document.getElementById("customSizeControls");
 const customCardWidthInput = document.getElementById("customCardWidth");
@@ -91,6 +94,71 @@ let customCardSize = { ...cardSizes.poker };
 let previousCardSizeKey = "poker";
 let customInputTimer = null;
 
+// F1: Preset save/restore keys
+const PRESET_STORAGE_KEY = "card-formatter-preset";
+
+function savePreset() {
+  try {
+    const preset = {
+      layout: layoutSelect.value,
+      page: pageSizeSelect.value,
+      cardSize: cardSizeSelect.value,
+      customWidth: customCardWidthInput.value,
+      customHeight: customCardHeightInput.value,
+      gutter: gutterInput.value,
+      crosshairLength: crosshairLengthInput.value,
+      crosshairStroke: crosshairStrokeInput.value,
+      crosshairColor: crosshairColorSelect.value,
+      crosshairOpacity: crosshairOpacitySelect.value,
+      cornerGuideMode: cornerGuideModeSelect.value,
+      unitMetric: unitToggle.checked,
+      nudgeEnabled: nudgeToggle.checked,
+      nudgeX: nudgeXInput.value,
+      nudgeY: nudgeYInput.value,
+      previewBack: previewBackToggle.checked,
+    };
+    localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(preset));
+  } catch (error) {
+    // Storage unavailable — silently ignore
+  }
+}
+
+function restorePreset() {
+  try {
+    const raw = localStorage.getItem(PRESET_STORAGE_KEY);
+    if (!raw) return false;
+    const preset = JSON.parse(raw);
+    layoutSelect.value = preset.layout || "grid3x3";
+    pageSizeSelect.value = preset.page || "letter";
+    cardSizeSelect.value = preset.cardSize || "poker";
+    if (preset.customWidth) customCardWidthInput.value = preset.customWidth;
+    if (preset.customHeight) customCardHeightInput.value = preset.customHeight;
+    if (preset.gutter !== undefined) gutterInput.value = preset.gutter;
+    crosshairLengthInput.value = preset.crosshairLength || "20";
+    crosshairStrokeInput.value = preset.crosshairStroke || "1";
+    crosshairColorSelect.value = preset.crosshairColor || "black";
+    crosshairOpacitySelect.value = preset.crosshairOpacity || "1";
+    cornerGuideModeSelect.value = preset.cornerGuideMode || "back";
+    if (preset.unitMetric !== undefined) unitToggle.checked = preset.unitMetric;
+    if (preset.nudgeEnabled) {
+      nudgeToggle.checked = true;
+      nudgeXInput.value = preset.nudgeX || "0";
+      nudgeYInput.value = preset.nudgeY || "0";
+    }
+    previewBackToggle.checked = preset.previewBack || false;
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function clearPreset() {
+  try {
+    localStorage.removeItem(PRESET_STORAGE_KEY);
+  } catch (error) {
+    // Storage unavailable
+  }
+}
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -295,6 +363,38 @@ function updateSummary() {
   }
 
   summaryValue3.textContent = detailParts.join(" · ");
+
+  // F2: Page count estimate
+  const frontCount = frontFilesInput.files?.length || 0;
+  if (frontCount === 0) {
+    summaryLabel4.textContent = "Pages";
+    summaryValue4.textContent = "—";
+  } else {
+    const layoutKey = layoutSelect.value;
+    const layoutState = getActiveLayoutState(layoutKey, pageSizeSelect.value);
+    if (!layoutState) {
+      summaryLabel4.textContent = "Pages";
+      summaryValue4.textContent = "No fit";
+    } else {
+      const perPage = isGutterfold(layoutKey)
+        ? layoutState.layoutConfig.rows
+        : layoutState.capacity;
+      const frontPages = Math.ceil(frontCount / perPage);
+      const backCount = getBackFiles().length;
+      const hasBacks = backCount > 0;
+      const isDuplex = hasBacks && !isGutterfold(layoutKey);
+      let pagesText;
+      if (isGutterfold) {
+        pagesText = `${frontPages} sheet${frontPages !== 1 ? "s" : ""} (backs included)`;
+      } else if (isDuplex) {
+        pagesText = `${frontPages * 2} sheets (${frontPages} front + ${frontPages} back)`;
+      } else {
+        pagesText = `${frontPages} sheet${frontPages !== 1 ? "s" : ""}`;
+      }
+      summaryLabel4.textContent = "Pages";
+      summaryValue4.textContent = pagesText;
+    }
+  }
 }
 function getLayoutConfig(layout) {
   if (layout === "grid3x3") {
@@ -2188,3 +2288,69 @@ selectAllFronts.addEventListener("change", () => {
     input.checked = checked;
   });
 });
+
+// F1: Auto-save preset on every settings change
+function wirePresetAutoSave() {
+  const settingsInputs = [
+    layoutSelect,
+    pageSizeSelect,
+    cardSizeSelect,
+    customCardWidthInput,
+    customCardHeightInput,
+    gutterInput,
+    crosshairLengthInput,
+    crosshairStrokeInput,
+    crosshairColorSelect,
+    crosshairOpacitySelect,
+    cornerGuideModeSelect,
+    unitToggle,
+    nudgeToggle,
+    nudgeXInput,
+    nudgeYInput,
+    previewBackToggle,
+  ];
+  settingsInputs.forEach((input) => {
+    input.addEventListener("change", () => savePreset());
+    input.addEventListener("input", () => savePreset());
+  });
+}
+
+// F1: Reset preset handler
+resetPresetBtn.addEventListener("click", () => {
+  clearPreset();
+  cardSizeSelect.value = "poker";
+  pageSizeSelect.value = "letter";
+  layoutSelect.value = "grid3x3";
+  customCardWidthInput.value = "2.5";
+  customCardHeightInput.value = "3.5";
+  gutterInput.value = "0.25";
+  crosshairLengthInput.value = "20";
+  crosshairStrokeInput.value = "1";
+  crosshairColorSelect.value = "black";
+  crosshairOpacitySelect.value = "1";
+  cornerGuideModeSelect.value = "back";
+  unitToggle.checked = false;
+  nudgeToggle.checked = false;
+  nudgeXInput.value = "0";
+  nudgeYInput.value = "0";
+  previewBackToggle.checked = false;
+  currentPreviewPage = 0;
+  updateLayoutUi();
+  updateUnitDisplay();
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
+  setStatus("Settings reset to defaults.");
+});
+
+// F1: Wire up auto-save and restore on load
+wirePresetAutoSave();
+if (restorePreset()) {
+  updateLayoutUi();
+  updateUnitDisplay();
+  currentPreviewPage = 0;
+  renderPreview().catch((error) => console.error(error));
+  renderThumbnails().catch((error) => console.error(error));
+} else {
+  updateLayoutUi();
+  updateUnitDisplay();
+}
