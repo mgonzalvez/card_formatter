@@ -196,6 +196,10 @@
                 <option value="a4">A4</option>
               </select>
             </label>
+            <label>
+              <span id="safeMarginLabel">Paper safe margin (in)</span>
+              <input id="safeMarginInput" type="number" min="0" max="1" step="0.05" value="0.25" />
+            </label>
           </div>
 
           <div class="custom-size-panel" id="customSizeControls" hidden>
@@ -239,7 +243,7 @@
                 <div class="bleed-color-row">
                   <label class="bleed-auto-toggle">
                     <input id="bleedAutoColor" type="checkbox" checked />
-                    <span>Detect automatically</span>
+                    <span>Extend image edge pixels</span>
                   </label>
                   <input id="bleedColorPicker" type="color" value="#ffffff" disabled aria-label="Custom bleed color" />
                 </div>

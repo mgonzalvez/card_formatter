@@ -48,6 +48,7 @@ const summaryValue3 = document.getElementById("summaryValue3");
 const summaryLabel4 = document.getElementById("summaryLabel4");
 const summaryValue4 = document.getElementById("summaryValue4");
 const gutterLabel = document.getElementById("gutterLabel");
+const safeMarginLabel = document.getElementById("safeMarginLabel");
 const exportHeading = document.getElementById("exportHeading");
 const duplexNote = document.getElementById("duplexNote");
 const bleedColorControls = document.getElementById("bleedColorControls");
@@ -70,11 +71,19 @@ let backRotations = [];
 let backPairingMode = false;
 let lastUnitMetric = false;
 let currentPreviewPage = 0;
-let customBleedColor = null; // {r, g, b} or null for auto
+let customBleedColor = null; // null = extend edge pixels, "auto" = detected solid color, {r, g, b} = custom
 
 const BLEED_GAP_IN = 0.25;
 const BLEED_EXTEND_IN = 0.25;
-const SAFE_MARGIN_IN = 0.25;
+let SAFE_MARGIN_IN = 0.25;
+const safeMarginInput = document.getElementById("safeMarginInput");
+
+function syncSafeMargin() {
+  const raw = Number(safeMarginInput.value);
+  if (safeMarginInput.value === "" || !Number.isFinite(raw)) return;
+  const inches = unitToggle.checked ? raw / 25.4 : raw;
+  SAFE_MARGIN_IN = Math.min(1, Math.max(0, inches));
+}
 const POINTS_PER_IN = 72;
 
 const pageSizes = {
@@ -106,6 +115,7 @@ function savePreset() {
       customWidth: customCardWidthInput.value,
       customHeight: customCardHeightInput.value,
       gutter: gutterInput.value,
+      safeMargin: safeMarginInput.value,
       crosshairLength: crosshairLengthInput.value,
       crosshairStroke: crosshairStrokeInput.value,
       crosshairColor: crosshairColorSelect.value,
@@ -134,6 +144,7 @@ function restorePreset() {
     if (preset.customWidth) customCardWidthInput.value = preset.customWidth;
     if (preset.customHeight) customCardHeightInput.value = preset.customHeight;
     if (preset.gutter !== undefined) gutterInput.value = preset.gutter;
+    if (preset.safeMargin !== undefined) safeMarginInput.value = preset.safeMargin;
     crosshairLengthInput.value = preset.crosshairLength || "20";
     crosshairStrokeInput.value = preset.crosshairStroke || "1";
     crosshairColorSelect.value = preset.crosshairColor || "black";
@@ -272,7 +283,14 @@ function updateUnitDisplay() {
   unitLabel.textContent = useMetric ? "Units: Metric (mm)" : "Units: Imperial (inches)";
   gutterLabel.textContent = useMetric ? "Center gutter / bleed (mm)" : "Center gutter / bleed (in)";
 
+  safeMarginLabel.textContent = useMetric ? "Paper safe margin (mm)" : "Paper safe margin (in)";
+  safeMarginInput.max = useMetric ? "25.4" : "1";
+  safeMarginInput.step = useMetric ? "0.5" : "0.05";
   if (useMetric !== lastUnitMetric) {
+    const margin = Number(safeMarginInput.value);
+    if (safeMarginInput.value !== "" && Number.isFinite(margin)) {
+      safeMarginInput.value = formatNumber(useMetric ? inchesToMm(margin) : margin / 25.4, 2);
+    }
     const current = Number(gutterInput.value || 0);
     if (!Number.isNaN(current)) {
       const next = useMetric ? inchesToMm(current) : current / 25.4;
@@ -280,6 +298,7 @@ function updateUnitDisplay() {
     }
     lastUnitMetric = useMetric;
   }
+  syncSafeMargin();
 
   if (useMetric) {
     gutterInput.min = formatNumber(inchesToMm(0.10), 2);
@@ -406,25 +425,19 @@ function getLayoutConfig(layout) {
   return { cols: 3, rows: 2, gap: 0, centerGutter: 0 };
 }
 
-// Compute dynamic cols/rows that fit within safe margins.
-// Never shrinks below the current hardcoded grid — preserves existing layouts
-// even if they slightly exceed safe margins. Grows larger for smaller cards.
+// Compute cols/rows that fit within the paper safe margin.
 function computeLayoutGrid(layoutKey, pageSize, cardSize) {
   const safeMarginPt = inchesToPoints(SAFE_MARGIN_IN);
   const safeW = pageSize.w - safeMarginPt * 2;
   const safeH = pageSize.h - safeMarginPt * 2;
-  const current = getLayoutConfig(layoutKey);
 
   if (layoutKey === "grid3x3") {
     // Portrait page, portrait cards
     const safeCols = Math.max(1, Math.floor(safeW / cardSize.w));
     const safeRows = Math.max(1, Math.floor(safeH / cardSize.h));
-    const pageCols = Math.max(1, Math.floor(pageSize.w / cardSize.w));
-    const pageRows = Math.max(1, Math.floor(pageSize.h / cardSize.h));
-    const fitsOnPage = pageCols >= current.cols && pageRows >= current.rows;
     return {
-      cols: fitsOnPage ? Math.max(current.cols, safeCols) : safeCols,
-      rows: fitsOnPage ? Math.max(current.rows, safeRows) : safeRows,
+      cols: safeCols,
+      rows: safeRows,
       gap: 0,
       centerGutter: 0,
     };
@@ -432,15 +445,10 @@ function computeLayoutGrid(layoutKey, pageSize, cardSize) {
 
   if (layoutKey === "gutterfold") {
     // Portrait page, landscape cards, 2 fixed columns with center gutter
-    const gutterPt = inchesToPoints(getGutterValueInInches());
-    const colW = (pageSize.w - gutterPt) / 2;
-    const safeColW = (safeW - gutterPt) / 2;
     const safeRows = Math.max(1, Math.floor(safeH / cardSize.h));
-    const pageRows = Math.max(1, Math.floor(pageSize.h / cardSize.h));
-    const fitsOnPage = colW >= cardSize.w && pageRows >= current.rows;
     return {
       cols: 2,
-      rows: fitsOnPage ? Math.max(current.rows, safeRows) : safeRows,
+      rows: safeRows,
       gap: 0,
       centerGutter: getGutterValueInInches(),
     };
@@ -449,12 +457,9 @@ function computeLayoutGrid(layoutKey, pageSize, cardSize) {
   // grid2x3bleed — landscape page, portrait cards (cardSize already includes bleed)
   const safeCols = Math.max(1, Math.floor(safeW / cardSize.w));
   const safeRows = Math.max(1, Math.floor(safeH / cardSize.h));
-  const pageCols = Math.max(1, Math.floor(pageSize.w / cardSize.w));
-  const pageRows = Math.max(1, Math.floor(pageSize.h / cardSize.h));
-  const fitsOnPage = pageCols >= current.cols && pageRows >= current.rows;
   return {
-    cols: fitsOnPage ? Math.max(current.cols, safeCols) : safeCols,
-    rows: fitsOnPage ? Math.max(current.rows, safeRows) : safeRows,
+    cols: safeCols,
+    rows: safeRows,
     gap: 0,
     centerGutter: 0,
   };
@@ -796,19 +801,6 @@ async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, o
       return { r, g, b };
     };
 
-    let fill;
-    if (overrideColor) {
-      fill = overrideColor;
-    } else {
-      const dominant = getDominantColor([
-        { x: 0, y: 0, w: img.width, h: samplePxY },
-        { x: 0, y: img.height - samplePxY, w: img.width, h: samplePxY },
-        { x: 0, y: 0, w: samplePxX, h: img.height },
-        { x: img.width - samplePxX, y: 0, w: samplePxX, h: img.height },
-      ]);
-      fill = dominant;
-    }
-
     const canvas = document.createElement("canvas");
     canvas.width = img.width + bleedPxX * 2;
     canvas.height = img.height + bleedPxY * 2;
@@ -820,8 +812,29 @@ async function createBleedDataUrlFromDataUrl(dataUrl, bleedIn, cardSizeInches, o
       ctx.fillRect(x, y, w, h);
     };
 
-    // Fill all bleed areas with the detected or user-selected color.
-    fillRect(fill, 0, 0, canvas.width, canvas.height);
+    if (overrideColor) {
+      const fill = overrideColor === "auto"
+        ? getDominantColor([
+          { x: 0, y: 0, w: img.width, h: samplePxY },
+          { x: 0, y: img.height - samplePxY, w: img.width, h: samplePxY },
+          { x: 0, y: 0, w: samplePxX, h: img.height },
+          { x: img.width - samplePxX, y: 0, w: samplePxX, h: img.height },
+        ])
+        : overrideColor;
+      fillRect(fill, 0, 0, canvas.width, canvas.height);
+    } else {
+      // Extend the outermost pixel rows/columns of the image across the bleed area.
+      const w = img.width;
+      const h = img.height;
+      ctx.drawImage(img, 0, 0, w, 1, bleedPxX, 0, w, bleedPxY);
+      ctx.drawImage(img, 0, h - 1, w, 1, bleedPxX, bleedPxY + h, w, bleedPxY);
+      ctx.drawImage(img, 0, 0, 1, h, 0, bleedPxY, bleedPxX, h);
+      ctx.drawImage(img, w - 1, 0, 1, h, bleedPxX + w, bleedPxY, bleedPxX, h);
+      ctx.drawImage(img, 0, 0, 1, 1, 0, 0, bleedPxX, bleedPxY);
+      ctx.drawImage(img, w - 1, 0, 1, 1, bleedPxX + w, 0, bleedPxX, bleedPxY);
+      ctx.drawImage(img, 0, h - 1, 1, 1, 0, bleedPxY + h, bleedPxX, bleedPxY);
+      ctx.drawImage(img, w - 1, h - 1, 1, 1, bleedPxX + w, bleedPxY + h, bleedPxX, bleedPxY);
+    }
 
     // Draw center image last
     ctx.drawImage(img, bleedPxX, bleedPxY);
@@ -1981,6 +1994,8 @@ generateBtn.addEventListener("click", () => {
 });
 
 function wirePreviewUpdates() {
+  safeMarginInput.addEventListener("input", syncSafeMargin);
+  safeMarginInput.addEventListener("change", syncSafeMargin);
   const inputs = [
     frontFilesInput,
     backFilesInput,
@@ -1988,6 +2003,7 @@ function wirePreviewUpdates() {
     pageSizeSelect,
     cardSizeSelect,
     gutterInput,
+    safeMarginInput,
     crosshairLengthInput,
     crosshairStrokeInput,
     crosshairColorSelect,
@@ -2170,7 +2186,7 @@ updateUnitDisplay();
 
 bleedAutoColor.addEventListener("change", () => {
   bleedColorPicker.disabled = bleedAutoColor.checked;
-  customBleedColor = bleedAutoColor.checked ? null : hexToRgb(bleedColorPicker.value);
+  customBleedColor = bleedAutoColor.checked ? null : "auto";
   renderPreview().catch((error) => console.error(error));
   renderThumbnails().catch((error) => console.error(error));
 });
@@ -2298,6 +2314,7 @@ function wirePresetAutoSave() {
     customCardWidthInput,
     customCardHeightInput,
     gutterInput,
+    safeMarginInput,
     crosshairLengthInput,
     crosshairStrokeInput,
     crosshairColorSelect,
@@ -2324,6 +2341,7 @@ resetPresetBtn.addEventListener("click", () => {
   customCardWidthInput.value = "2.5";
   customCardHeightInput.value = "3.5";
   gutterInput.value = "0.25";
+  safeMarginInput.value = "0.25";
   crosshairLengthInput.value = "20";
   crosshairStrokeInput.value = "1";
   crosshairColorSelect.value = "black";
